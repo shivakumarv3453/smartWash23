@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:smart_wash/app_bar.dart';
-import 'package:smart_wash/booking_details.dart';
+import 'package:smart_wash/user/app_bar.dart';
+import 'package:smart_wash/user/bookings/booking_details.dart';
 
 class BookingListScreen extends StatelessWidget {
   const BookingListScreen({super.key});

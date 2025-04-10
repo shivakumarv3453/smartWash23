@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:smart_wash/app_bar.dart';
-import 'package:smart_wash/time_slot.dart';
+import 'package:smart_wash/user/app_bar.dart';
+import 'package:smart_wash/user/screens/time_slot.dart';
 import 'dynamic_card.dart';
 
 // ✅ Global variable to store selected wash type

@@ -1,4 +1,4 @@
-import 'package:smart_wash/dash.dart';
+import 'package:smart_wash/user/screens/dash.dart';
 import 'package:smart_wash/services/databse.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

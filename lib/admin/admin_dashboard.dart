@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -5,8 +7,9 @@ import 'package:smart_wash/admin/app_bar2.dart';
 import 'package:smart_wash/admin/manage_time_slot.dart';
 // import 'package:smart_wash/manage_wash_types.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:smart_wash/admin/view_bookings.dart';
 
-import '../login.dart';
+import '../login/login.dart';
 
 class AdminDashboard extends StatefulWidget {
   final String adminUid;
@@ -41,6 +44,8 @@ Future<List<String>> fetchServiceTypes(dynamic widget) async {
 class _AdminDashboardState extends State<AdminDashboard> {
   bool onSiteEnabled = true;
   bool atCenterEnabled = true;
+  int _unreadNotifications = 0;
+  late StreamSubscription<QuerySnapshot> _notificationSubscription;
 
   void showManagementDialog(BuildContext context, String title) {
     showDialog(
@@ -204,7 +209,95 @@ class _AdminDashboardState extends State<AdminDashboard> {
     fetchAdminSettings();
     if (_isAdmin) {
       requestNotificationPermission(widget.adminUid);
+      _setupNotificationListener();
     }
+  }
+
+  void _setupNotificationListener() {
+    _notificationSubscription = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('adminUid', isEqualTo: widget.adminUid)
+        .where('read', isEqualTo: false)
+        .snapshots()
+        .listen((snapshot) {
+      setState(() {
+        _unreadNotifications = snapshot.docs.length;
+      });
+
+      // Show snackbar for new notifications
+      if (snapshot.docs.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('New booking received!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription.cancel(); // Don't forget this
+    super.dispose();
+  }
+
+  // Update your appBar in build method
+
+  // Add this new method
+  void _showNotificationsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Notifications'),
+          content: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('notifications')
+                .where('adminUid', isEqualTo: widget.adminUid)
+                .orderBy('timestamp', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return Text('No notifications');
+              }
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: snapshot.data!.docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return ListTile(
+                    title: Text(data['title'] ?? 'Notification'),
+                    subtitle: Text(data['message'] ?? ''),
+                    trailing: IconButton(
+                      icon: Icon(Icons.close),
+                      onPressed: () => _markAsRead(doc.id),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Add this new method
+  Future<void> _markAsRead(String notificationId) async {
+    await FirebaseFirestore.instance
+        .collection('notifications')
+        .doc(notificationId)
+        .update({'read': true});
   }
 
   Future<void> requestNotificationPermission(String adminUid) async {
@@ -387,112 +480,5 @@ class DashboardItem extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class ViewBookingsPage extends StatelessWidget {
-  final String adminUid;
-  const ViewBookingsPage({super.key, required this.adminUid});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: custAppBarr(context, "Booking Requests"),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection("bookings")
-            .where("centerUid", isEqualTo: adminUid)
-            .orderBy("timestamp", descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error.toString()}"));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("No bookings available"));
-          }
-
-          // Sort documents by timestamp if needed (client-side fallback)
-          var bookings = snapshot.data!.docs;
-          bookings.sort((a, b) {
-            final aTime = (a.data() as Map<String, dynamic>)['timestamp'];
-            final bTime = (b.data() as Map<String, dynamic>)['timestamp'];
-            return bTime?.compareTo(aTime ?? Timestamp.now()) ?? 0;
-          });
-
-          return ListView.builder(
-            itemCount: bookings.length,
-            itemBuilder: (context, index) {
-              var doc = bookings[index];
-              final data = doc.data() as Map<String, dynamic>;
-
-              // Convert timestamp to readable format if needed
-              final timestamp = data['timestamp'] as Timestamp?;
-              final dateTime = timestamp?.toDate();
-              final formattedDate = dateTime != null
-                  ? "${dateTime.day}/${dateTime.month}/${dateTime.year}"
-                  : data['date'] ?? "N/A";
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: ListTile(
-                  title: Text("${data["carType"]} - ${data["washType"]}"),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Service: ${data["serviceType"]}"),
-                      Text("Date: $formattedDate"),
-                      Text("Time: ${data["time"]}"),
-                      Text("Status: ${data["status"]}"),
-                    ],
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.more_vert),
-                    onPressed: () => _showStatusOptions(context, doc.id),
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  void _showStatusOptions(BuildContext context, String bookingId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Update Status"),
-        actions: [
-          TextButton(
-            onPressed: () => _updateStatus(context, bookingId, "Confirmed"),
-            child: const Text("Confirm"),
-          ),
-          TextButton(
-            onPressed: () => _updateStatus(context, bookingId, "Cancelled"),
-            child: const Text("Cancel"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _updateStatus(
-      BuildContext context, String bookingId, String status) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection("bookings")
-          .doc(bookingId)
-          .update({"status": status});
-      Navigator.pop(context);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to update status: $e")),
-      );
-    }
   }
 }

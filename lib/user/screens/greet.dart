@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:smart_wash/app_bar.dart';
-import 'package:smart_wash/car_type.dart';
-import 'package:smart_wash/wash_type.dart';
+import 'package:smart_wash/user/app_bar.dart';
+import 'package:smart_wash/user/screens/car_type.dart';
+import 'package:smart_wash/user/screens/wash_type.dart';
 
 class Greet extends StatefulWidget {
   final String selectedCenter;

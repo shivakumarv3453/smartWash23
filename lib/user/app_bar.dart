@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:smart_wash/booking_list.dart';
-import 'package:smart_wash/calendar.dart';
-import 'package:smart_wash/login.dart';
+import 'package:smart_wash/user/bookings/booking_list.dart';
+import 'package:smart_wash/user/screens/calendar.dart';
+import 'package:smart_wash/login/login.dart';
 import 'package:smart_wash/admin/partner.dart';
-import 'package:smart_wash/profile.dart'; // Add this import
+import 'package:smart_wash/user/screens/profile.dart'; // Add this import
 
 custAppBar(BuildContext context, String title) {
   return AppBar(

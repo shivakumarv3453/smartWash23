@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:smart_wash/app_bar.dart';
+import 'package:smart_wash/user/app_bar.dart';
 
 class BookingDetailsScreen extends StatelessWidget {
   final String bookingId;
@@ -76,7 +76,8 @@ class BookingDetailsScreen extends StatelessWidget {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
-      messenger.showSnackBar(const SnackBar(content: Text('Authentication required')));
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Authentication required')));
       return;
     }
 
@@ -126,12 +127,12 @@ class BookingDetailsScreen extends StatelessWidget {
           behavior: SnackBarBehavior.floating,
         ),
       );
-
     } on FirebaseException catch (e) {
       navigator.pop(); // Close loading
 
       final errorMessage = switch (e.code) {
-        'permission-denied' => 'You do not have permission to cancel this booking',
+        'permission-denied' =>
+          'You do not have permission to cancel this booking',
         'not-found' => 'Booking not found',
         _ => 'Failed to cancel: ${e.message ?? 'Unknown error'}',
       };
@@ -145,7 +146,6 @@ class BookingDetailsScreen extends StatelessWidget {
       );
 
       debugPrint('Firestore error: ${e.code} - ${e.message}');
-
     } catch (e, stack) {
       navigator.pop(); // Close loading
       messenger.showSnackBar(
@@ -157,7 +157,6 @@ class BookingDetailsScreen extends StatelessWidget {
       debugPrint('Error: $e\n$stack');
     }
   }
-
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(

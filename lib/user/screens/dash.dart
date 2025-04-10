@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:smart_wash/app_bar.dart';
-import 'package:smart_wash/greet.dart';
+import 'package:smart_wash/user/app_bar.dart';
+import 'package:smart_wash/user/screens/greet.dart';
 // import 'package:smart_wash/main.dart';
-import 'package:smart_wash/rating.dart';
+import 'package:smart_wash/user/screens/rating.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:smart_wash/services/firebase_service.dart';
-import 'package:smart_wash/washing_center.dart';
+import 'package:smart_wash/user/screens/washing_center.dart';
 
 class Dash extends StatefulWidget {
   const Dash({super.key});

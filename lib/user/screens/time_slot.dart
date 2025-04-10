@@ -1,10 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:smart_wash/app_bar.dart';
-import 'package:smart_wash/booking_list.dart';
+import 'package:smart_wash/user/app_bar.dart';
+import 'package:smart_wash/user/bookings/booking_list.dart';
 // import 'package:smart_wash/booking_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:smart_wash/profile.dart';
+import 'package:smart_wash/user/screens/profile.dart';
 
 class TimeSlotPage extends StatefulWidget {
   final String selectedCenterUid;
@@ -294,7 +294,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                   return;
                 }
 
-                // Proceed with booking
+                // Show loading dialog
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -305,7 +305,12 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                 try {
                   final formattedDate =
                       "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
-                  await FirebaseFirestore.instance.collection('bookings').add({
+
+                  // Create booking document
+                  DocumentReference bookingRef = await FirebaseFirestore
+                      .instance
+                      .collection('bookings')
+                      .add({
                     'centerUid': widget.selectedCenterUid,
                     'center': widget.selectedCenter,
                     'carType': widget.carType,
@@ -316,7 +321,25 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                     'status': 'Pending',
                     'userId': userId,
                     'timestamp': FieldValue.serverTimestamp(),
+                    'notificationSent': false,
                   });
+
+                  // Send notification to admin
+                  await FirebaseFirestore.instance
+                      .collection('notifications')
+                      .doc()
+                      .set({
+                    'type': 'new_booking',
+                    'bookingId': bookingRef.id,
+                    'adminUid': widget.selectedCenterUid,
+                    'title': 'New Booking',
+                    'message': 'New booking at ${widget.selectedCenter}',
+                    'timestamp': FieldValue.serverTimestamp(),
+                    'read': false,
+                  });
+
+                  // Mark notification as sent
+                  await bookingRef.update({'notificationSent': true});
 
                   Navigator.of(context).pop(); // Close loader
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -346,7 +369,6 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
       },
     );
   }
-
   // void _navigateToBookingScreen(BuildContext context) {
   //   Navigator.push(
   //     context,

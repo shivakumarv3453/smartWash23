@@ -82,170 +82,139 @@ class _LoginState extends State<Login> {
     }
   }
 
-  // Future<void> loginUser() async {
-  //   try {
-  //     if (isAdminLogin) {
-  //       await loginAdmin();
-  //     } else {
-  //       await FirebaseAuth.instance.signInWithEmailAndPassword(
-  //         email: emailController.text.trim(),
-  //         password: passwordController.text.trim(),
-  //       );
-
-  //       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-  //         content: Text("Login Successful!"),
-  //       ));
-  //       Navigator.pushReplacement(
-  //         context,
-  //         MaterialPageRoute(builder: (context) => const Dash()),
-  //       );
-  //     }
-  //   } on FirebaseAuthException catch (e) {
-  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-  //       content: Text(e.message ?? "An error occurred."),
-  //     ));
-  //   }
-  // }
   Future<void> loginUser() async {
     try {
-      FocusScope.of(context).unfocus();
-
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
-
-      // Authenticate with Firebase
-      UserCredential userCredential =
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
-
-      // Check user role
-      final isAdmin = await _checkIfAdmin(userCredential.user!.uid);
-      final isRegularUser = await _checkIfRegularUser(userCredential.user!.uid);
-
-      // Close loading dialog
-      Navigator.of(context).pop();
-
-      if (isAdminLogin && isAdmin) {
-        // Admin login successful
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                AdminDashboard(adminUid: userCredential.user!.uid),
-          ),
+      if (isAdminLogin) {
+        await loginAdmin();
+      } else {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
         );
-      } else if (!isAdminLogin && isRegularUser) {
-        // Regular user login successful
+
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Login Successful!"),
+        ));
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const Dash()),
         );
-      } else {
-        // Role mismatch
-        await FirebaseAuth.instance.signOut();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(isAdminLogin
-                  ? 'This account is not registered as admin'
-                  : 'Please use admin login for this account')),
-        );
       }
     } on FirebaseAuthException catch (e) {
-      Navigator.of(context).pop(); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Authentication failed")),
-      );
-    } catch (e) {
-      Navigator.of(context).pop(); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.message ?? "An error occurred."),
+      ));
     }
   }
+  // Future<void> loginUser() async {
+  //   try {
+  //     FocusScope.of(context).unfocus();
 
-  Future<bool> _checkIfAdmin(String uid) async {
-    final doc =
-        await FirebaseFirestore.instance.collection('partners').doc(uid).get();
-    return doc.exists;
-  }
+  //     // Show loading dialog
+  //     showDialog(
+  //       context: context,
+  //       barrierDismissible: false,
+  //       builder: (context) => const Center(child: CircularProgressIndicator()),
+  //     );
 
-  Future<bool> _checkIfRegularUser(String uid) async {
-    final doc =
-        await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    return doc.exists;
-  }
+  //     // Authenticate with Firebase
+  //     UserCredential userCredential =
+  //         await FirebaseAuth.instance.signInWithEmailAndPassword(
+  //       email: emailController.text.trim(),
+  //       password: passwordController.text.trim(),
+  //     );
+
+  //     // Check user role
+  //     final isAdmin = await _checkIfAdmin(userCredential.user!.uid);
+  //     final isRegularUser = await _checkIfRegularUser(userCredential.user!.uid);
+
+  //     // Close loading dialog
+  //     Navigator.of(context).pop();
+
+  //     if (isAdminLogin && isAdmin) {
+  //       // Admin login successful
+  //       Navigator.pushReplacement(
+  //         context,
+  //         MaterialPageRoute(
+  //           builder: (context) =>
+  //               AdminDashboard(adminUid: userCredential.user!.uid),
+  //         ),
+  //       );
+  //     } else if (!isAdminLogin && isRegularUser) {
+  //       // Regular user login successful
+  //       Navigator.pushReplacement(
+  //         context,
+  //         MaterialPageRoute(builder: (context) => const Dash()),
+  //       );
+  //     } else {
+  //       // Role mismatch
+  //       await FirebaseAuth.instance.signOut();
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //             content: Text(isAdminLogin
+  //                 ? 'This account is not registered as admin'
+  //                 : 'Please use admin login for this account')),
+  //       );
+  //     }
+  //   } on FirebaseAuthException catch (e) {
+  //     Navigator.of(context).pop(); // Close loading dialog
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text(e.message ?? "Authentication failed")),
+  //     );
+  //   } catch (e) {
+  //     Navigator.of(context).pop(); // Close loading dialog
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text("Error: ${e.toString()}")),
+  //     );
+  //   }
+  // }
+
+  // Future<bool> _checkIfAdmin(String uid) async {
+  //   final doc =
+  //       await FirebaseFirestore.instance.collection('partners').doc(uid).get();
+  //   return doc.exists;
+  // }
+
+  // Future<bool> _checkIfRegularUser(String uid) async {
+  //   final doc =
+  //       await FirebaseFirestore.instance.collection('users').doc(uid).get();
+  //   return doc.exists;
+  // }
 
   Future<void> loginAdmin() async {
     try {
       FocusScope.of(context).unfocus();
 
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
-
-      // 1. First authenticate with Firebase Auth
+      // First authenticate with Firebase Auth
       UserCredential userCredential =
           await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
-      // 2. Check if user exists in partners collection
-      DocumentSnapshot partnerDoc = await FirebaseFirestore.instance
+      // Then verify they're actually a partner
+      DocumentSnapshot adminDoc = await FirebaseFirestore.instance
           .collection('partners')
           .doc(userCredential.user!.uid)
           .get();
 
-      // 3. Check if user exists in users collection
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .get();
-
-      // Close loading dialog
-      Navigator.of(context).pop();
-
-      if (partnerDoc.exists) {
-        // Successful admin login
+      if (adminDoc.exists) {
+        // Successful partner login
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                AdminDashboard(adminUid: userCredential.user!.uid),
+            builder: (context) => AdminDashboard(adminUid: adminDoc.id),
           ),
         );
-      } else if (userDoc.exists) {
-        // Regular user trying to access admin - sign them out
-        await FirebaseAuth.instance.signOut();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Admin access required')),
-        );
       } else {
-        // User not found in either collection
+        // Not actually a partner - sign them out
         await FirebaseAuth.instance.signOut();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account not found')),
-        );
+        throw Exception("Not a registered partner");
       }
-    } on FirebaseAuthException catch (e) {
-      Navigator.of(context).pop(); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Authentication failed")),
-      );
     } catch (e) {
-      Navigator.of(context).pop(); // Close loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("Login failed: ${e.toString()}"),
+      ));
     }
   }
 
