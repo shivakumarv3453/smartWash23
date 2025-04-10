@@ -3,9 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:smart_wash/admin/admin_dashboard.dart';
-import 'package:smart_wash/signup.dart';
-import 'package:smart_wash/forget_password.dart';
-import 'package:smart_wash/dash.dart';
+import 'package:smart_wash/login/signup.dart';
+import 'package:smart_wash/login/forget_password.dart';
+import 'package:smart_wash/user/screens/dash.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
