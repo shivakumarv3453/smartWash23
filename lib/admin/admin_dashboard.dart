@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:smart_wash/app_bar2.dart';
-import 'package:smart_wash/manage_time_slot.dart';
+import 'package:smart_wash/admin/app_bar2.dart';
+import 'package:smart_wash/admin/manage_time_slot.dart';
 // import 'package:smart_wash/manage_wash_types.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-import 'login.dart';
+import '../login.dart';
 
 class AdminDashboard extends StatefulWidget {
   final String adminUid;
@@ -223,13 +223,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
       print("📲 FCM Token: $token");
 
       // Save the token to Firestore
-      if (token != null) {
-        await FirebaseFirestore.instance
-            .collection('partners')
-            .doc(adminUid)
-            .update({'fcmToken': token});
-        print('✅ FCM token saved to Firestore');
-      }
+      await FirebaseFirestore.instance
+          .collection('partners')
+          .doc(adminUid)
+          .update({'fcmToken': token});
+      print('✅ FCM token saved to Firestore');
     } else {
       print('❌ Push notifications permission denied');
     }

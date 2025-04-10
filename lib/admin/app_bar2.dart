@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smart_wash/calendar.dart';
 import 'package:smart_wash/login.dart';
-import 'package:smart_wash/partner_profile.dart';
+import 'package:smart_wash/admin/partner_profile.dart';
 
 custAppBarr(BuildContext context, String title, {bool showBack = true}) {
   return AppBar(

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:smart_wash/booking_list.dart';
 import 'package:smart_wash/calendar.dart';
 import 'package:smart_wash/login.dart';
-import 'package:smart_wash/partner.dart';
+import 'package:smart_wash/admin/partner.dart';
 import 'package:smart_wash/profile.dart'; // Add this import
 
 custAppBar(BuildContext context, String title) {
