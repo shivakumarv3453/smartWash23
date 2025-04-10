@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "760988528329",
+    "project_id": "fir-auth-f1931",
+    "storage_bucket": "fir-auth-f1931.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:760988528329:android:686eadfa24b02c29512718",
+        "android_client_info": {
+          "package_name": "com.example.smart_wash"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "760988528329-m4a05lhsmggj5vtofhg9mnngdc58k0ub.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.smart_wash",
+            "certificate_hash": "ce7fb354256d804ba72fd9ea400684118bd53c1a"
+          }
+        },
+        {
+          "client_id": "760988528329-1q00vl8qfd5ner7t9jkqnv374lsmch27.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBGliauxMR_Ox3uc_5oiW-lqso-sGScZXI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "760988528329-1q00vl8qfd5ner7t9jkqnv374lsmch27.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "760988528329-391b97khfn4hmn2k8g7rtg9kkio8h577.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.smartWash"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
