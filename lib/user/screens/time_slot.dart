@@ -369,22 +369,6 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
       },
     );
   }
-  // void _navigateToBookingScreen(BuildContext context) {
-  //   Navigator.push(
-  //     context,
-  //     MaterialPageRoute(
-  //       builder: (context) => BookingScreen(
-  //         centerUid: widget.selectedCenterUid,
-  //         selectedCenter: widget.selectedCenter,
-  //         selectedCarType: widget.carType, // From WashType
-  //         selectedWashType: widget.washType, // From WashType
-  //         selectedServiceType: widget.serviceType, // From Greet
-  //         selectedDate: selectedDate.toLocal().toString().split(' ')[0],
-  //         selectedTime: selectedTimeSlot!,
-  //       ),
-  //     ),
-  //   );
-  // }
 }
 
 class _DayHeader extends StatelessWidget {

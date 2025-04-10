@@ -44,7 +44,7 @@ Future<List<String>> fetchServiceTypes(dynamic widget) async {
 class _AdminDashboardState extends State<AdminDashboard> {
   bool onSiteEnabled = true;
   bool atCenterEnabled = true;
-  int _unreadNotifications = 0;
+  // int _unreadNotifications = 0;
   late StreamSubscription<QuerySnapshot> _notificationSubscription;
 
   void showManagementDialog(BuildContext context, String title) {
@@ -209,95 +209,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
     fetchAdminSettings();
     if (_isAdmin) {
       requestNotificationPermission(widget.adminUid);
-      _setupNotificationListener();
+      // _setupNotificationListener();
     }
-  }
-
-  void _setupNotificationListener() {
-    _notificationSubscription = FirebaseFirestore.instance
-        .collection('notifications')
-        .where('adminUid', isEqualTo: widget.adminUid)
-        .where('read', isEqualTo: false)
-        .snapshots()
-        .listen((snapshot) {
-      setState(() {
-        _unreadNotifications = snapshot.docs.length;
-      });
-
-      // Show snackbar for new notifications
-      if (snapshot.docs.isNotEmpty && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('New booking received!'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    });
   }
 
   @override
   void dispose() {
     _notificationSubscription.cancel(); // Don't forget this
     super.dispose();
-  }
-
-  // Update your appBar in build method
-
-  // Add this new method
-  void _showNotificationsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Notifications'),
-          content: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('notifications')
-                .where('adminUid', isEqualTo: widget.adminUid)
-                .orderBy('timestamp', descending: true)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
-              }
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return Text('No notifications');
-              }
-
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: snapshot.data!.docs.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return ListTile(
-                    title: Text(data['title'] ?? 'Notification'),
-                    subtitle: Text(data['message'] ?? ''),
-                    trailing: IconButton(
-                      icon: Icon(Icons.close),
-                      onPressed: () => _markAsRead(doc.id),
-                    ),
-                  );
-                }).toList(),
-              );
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Add this new method
-  Future<void> _markAsRead(String notificationId) async {
-    await FirebaseFirestore.instance
-        .collection('notifications')
-        .doc(notificationId)
-        .update({'read': true});
   }
 
   Future<void> requestNotificationPermission(String adminUid) async {
