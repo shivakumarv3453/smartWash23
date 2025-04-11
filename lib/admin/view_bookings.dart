@@ -51,8 +51,12 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar:
-          custAppBarr(context, "Booking Requests", adminUid: widget.adminUid),
+      appBar: custAppBarr(
+        context,
+        "Booking Requests",
+        adminUid: widget.adminUid,
+        hideNotificationIcon: true,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: StreamBuilder<QuerySnapshot>(
