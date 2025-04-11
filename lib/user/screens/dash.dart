@@ -240,6 +240,12 @@ class _DashState extends State<Dash> {
     }
   }
 
+  String _formatDate(dynamic timestamp) {
+    if (timestamp == null) return "N/A";
+    DateTime date = (timestamp as Timestamp).toDate();
+    return "${date.day}/${date.month}/${date.year}";
+  }
+
   Map<String, String> centerNameToUid = {};
 
   void fetchCenters() async {
@@ -546,59 +552,214 @@ class _DashState extends State<Dash> {
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) {
-                        return Center(child: CircularProgressIndicator());
+                        return const Center(child: CircularProgressIndicator());
                       }
 
                       var feedbackDocs = snapshot.data!.docs;
+                      bool showViewMore = feedbackDocs.length > 3;
 
                       return Column(
-                        children: feedbackDocs.map((doc) {
-                          var feedbackData = doc.data() as Map<String, dynamic>;
+                        children: [
+                          const SizedBox(height: 10),
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 20),
-                            padding: const EdgeInsets.all(16.0),
+                          // Container for first 3 feedback items
+                          Container(
+                            height: 400, // Fixed height for initial view
                             decoration: BoxDecoration(
-                              color: Colors.grey[200],
                               borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey[300]!),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Display user name
-                                Text(
-                                  feedbackData['username'] ?? 'Anonymous',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16),
-                                ),
-                                const SizedBox(height: 5),
+                            child: SingleChildScrollView(
+                              child: Column(
+                                children: feedbackDocs.take(3).map((doc) {
+                                  var feedbackData =
+                                      doc.data() as Map<String, dynamic>;
+                                  return Container(
+                                    margin: const EdgeInsets.all(8.0),
+                                    padding: const EdgeInsets.all(12.0),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // User name and date
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              feedbackData['username'] ??
+                                                  'Anonymous',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            Text(
+                                              _formatDate(
+                                                  feedbackData['timestamp']),
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
 
-                                // Display stars based on the rating
-                                Row(
-                                  children: List.generate(5, (index) {
-                                    return Icon(
-                                      index < (feedbackData['rating'] ?? 0)
-                                          ? Icons.star
-                                          : Icons.star_border,
-                                      color: Colors.green,
-                                      size: 30,
+                                        // Star rating
+                                        Row(
+                                          children: List.generate(5, (index) {
+                                            return Icon(
+                                              index <
+                                                      (feedbackData['rating'] ??
+                                                          0)
+                                                  ? Icons.star
+                                                  : Icons.star_border,
+                                              color: Colors.amber,
+                                              size: 24,
+                                            );
+                                          }),
+                                        ),
+                                        const SizedBox(height: 8),
+
+                                        // Feedback comment
+                                        Text(
+                                          feedbackData['comment']?.isNotEmpty ==
+                                                  true
+                                              ? feedbackData['comment']
+                                              : "No comment provided.",
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ),
+
+                          // "View More" button if there are more than 3 feedbacks
+                          if (showViewMore)
+                            TextButton(
+                              onPressed: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  builder: (context) {
+                                    return Container(
+                                      height:
+                                          MediaQuery.of(context).size.height *
+                                              0.8,
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        children: [
+                                          const Text(
+                                            "All Customer Feedback",
+                                            style: TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Expanded(
+                                            child: ListView.builder(
+                                              itemCount: feedbackDocs.length,
+                                              itemBuilder: (context, index) {
+                                                var feedbackData =
+                                                    feedbackDocs[index].data()
+                                                        as Map<String, dynamic>;
+                                                return Container(
+                                                  margin: const EdgeInsets.only(
+                                                      bottom: 8),
+                                                  padding:
+                                                      const EdgeInsets.all(12),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey[100],
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Row(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .spaceBetween,
+                                                        children: [
+                                                          Text(
+                                                            feedbackData[
+                                                                    'username'] ??
+                                                                'Anonymous',
+                                                            style:
+                                                                const TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 16,
+                                                            ),
+                                                          ),
+                                                          Text(
+                                                            _formatDate(
+                                                                feedbackData[
+                                                                    'timestamp']),
+                                                            style: TextStyle(
+                                                              color: Colors
+                                                                  .grey[600],
+                                                              fontSize: 12,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      Row(
+                                                        children: List.generate(
+                                                            5, (starIndex) {
+                                                          return Icon(
+                                                            starIndex <
+                                                                    (feedbackData[
+                                                                            'rating'] ??
+                                                                        0)
+                                                                ? Icons.star
+                                                                : Icons
+                                                                    .star_border,
+                                                            color: Colors.amber,
+                                                            size: 24,
+                                                          );
+                                                        }),
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      Text(
+                                                        feedbackData['comment']
+                                                                    ?.isNotEmpty ==
+                                                                true
+                                                            ? feedbackData[
+                                                                'comment']
+                                                            : "No comment provided.",
+                                                        style: const TextStyle(
+                                                            fontSize: 14),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     );
-                                  }),
-                                ),
-                                const SizedBox(height: 10),
-
-                                // Display rating comment
-                                Text(
-                                  feedbackData['comment']?.isNotEmpty == true
-                                      ? feedbackData['comment']
-                                      : "No comment provided.",
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              ],
+                                  },
+                                );
+                              },
+                              child: const Text("View All Feedback"),
                             ),
-                          );
-                        }).toList(),
+                        ],
                       );
                     },
                   ),
