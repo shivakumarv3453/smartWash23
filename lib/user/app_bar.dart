@@ -37,8 +37,11 @@ custAppBar(BuildContext context, String title) {
             Navigator.push(context,
                 MaterialPageRoute(builder: (context) => const PartnerPage()));
           } else if (value == "Logout") {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => const Login()));
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const Login()),
+              (Route<dynamic> route) => false,
+            );
           }
         },
         itemBuilder: (BuildContext context) => [

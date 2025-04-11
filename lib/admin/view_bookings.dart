@@ -52,7 +52,7 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar:
-          custAppBarr(context, "Booking Requests", unreadCount: _unreadCount),
+          custAppBarr(context, "Booking Requests", adminUid: widget.adminUid),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection("bookings")
@@ -85,7 +85,7 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
 
               return GestureDetector(
                 onTap: () {
-                  if (isNew) _markAsRead(doc.id);
+                  // if (isNew) _markAsRead(doc.id);
                   _showStatusOptions(context, doc.id);
                 },
                 child: Card(
@@ -108,7 +108,7 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                         trailing: IconButton(
                           icon: const Icon(Icons.more_vert),
                           onPressed: () {
-                            if (isNew) _markAsRead(doc.id);
+                            // if (isNew) _markAsRead(doc.id);
                             _showStatusOptions(context, doc.id);
                           },
                         ),
@@ -155,10 +155,18 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
   Future<void> _updateStatus(
       BuildContext context, String bookingId, String status) async {
     try {
+      // Step 1: Update the booking status
       await FirebaseFirestore.instance
-          .collection("bookings")
+          .collection('bookings')
           .doc(bookingId)
-          .update({"status": status});
+          .update({'status': status}); // only 'status'
+
+      // Step 2: Update notificationSent to false separately
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(bookingId)
+          .update({'notificationSent': false}); // only 'notificationSent'
+
       Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -293,7 +293,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return false;
       },
       child: Scaffold(
-        appBar: custAppBarr(context, "Admin Dashboard", showBack: false),
+        appBar: custAppBarr(context, "Admin Dashboard",
+            showBack: false, adminUid: widget.adminUid),
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
