@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smart_wash/user/app_bar.dart';
-import 'package:smart_wash/user/screens/payment.dart';
+// import 'package:smart_wash/user/screens/payment.dart';
 
 class BookingDetailsScreen extends StatelessWidget {
   final String bookingId;
@@ -16,7 +16,7 @@ class BookingDetailsScreen extends StatelessWidget {
 
   void _showCancelConfirmation(BuildContext context) {
     // Check if the booking status is confirmed before showing the cancellation fee
-    final isConfirmed = bookingData['status'] == 'Confirmed';
+    // final isConfirmed = bookingData['status'] == 'Confirmed';
 
     showDialog(
       context: context,

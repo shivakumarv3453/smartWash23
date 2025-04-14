@@ -5,8 +5,7 @@ import 'package:smart_wash/user/screens/calendar.dart';
 import 'package:smart_wash/login/login.dart';
 import 'package:smart_wash/admin/partner_profile.dart';
 
-int _unreadNotifications =
-    3; // You can update this dynamically from Firebase or state
+int _unreadNotifications = 3;
 
 void _showNotificationsDialog(BuildContext context, String adminUid) {
   showDialog(

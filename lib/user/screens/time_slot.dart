@@ -14,6 +14,10 @@ class TimeSlotPage extends StatefulWidget {
   final String carType;
   final String washType;
   final String asset;
+  // final double userLat;
+  // final double userLon;
+  // final double centerLat;
+  // final double centerLon;
 
   const TimeSlotPage({
     super.key,
@@ -23,6 +27,10 @@ class TimeSlotPage extends StatefulWidget {
     required this.carType,
     required this.washType,
     required this.asset,
+    // required this.centerLat,
+    // required this.centerLon,
+    // required this.userLat,
+    // required this.userLon
   });
 
   @override
