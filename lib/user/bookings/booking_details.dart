@@ -70,19 +70,19 @@ class BookingDetailsScreen extends StatelessWidget {
   }
 
   Future<void> _cancelBooking(BuildContext context) async {
-    // Store context references first
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
       messenger.showSnackBar(
-          const SnackBar(content: Text('Authentication required')));
+        const SnackBar(content: Text('Authentication required')),
+      );
       return;
     }
 
     // Show loading dialog
-    final loadingDialog = showDialog(
+    showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => PopScope(
@@ -101,60 +101,30 @@ class BookingDetailsScreen extends StatelessWidget {
     );
 
     try {
-      // Prepare update data according to rules
-      final updateData = {
-        'status': 'Cancelled',
-        'cancelledAt': FieldValue.serverTimestamp(),
-        // Add user ID to help with debugging
-        'lastUpdatedBy': currentUser.uid,
-      };
-
-      // Execute the update
       await FirebaseFirestore.instance
           .collection('bookings')
           .doc(bookingId)
-          .update(updateData);
+          .update({
+        'status': 'Cancelled',
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'lastUpdatedBy': currentUser.uid,
+      });
 
-      // Close dialogs and navigate
-      await loadingDialog; // Ensure loading dialog is mounted
-      navigator.pop(); // Close loading
-      navigator.pop(); // Return to previous screen
+      navigator.pop(); // Close the loading dialog
+      navigator.pop(); // Go back to previous screen
 
-      // Show success
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Booking cancelled successfully')),
+      );
+    } catch (e, stackTrace) {
+      navigator.pop(); // Close the loading dialog
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Booking cancelled successfully'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } on FirebaseException catch (e) {
-      navigator.pop(); // Close loading
-
-      final errorMessage = switch (e.code) {
-        'permission-denied' =>
-          'You do not have permission to cancel this booking',
-        'not-found' => 'Booking not found',
-        _ => 'Failed to cancel: ${e.message ?? 'Unknown error'}',
-      };
-
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-
-      debugPrint('Firestore error: ${e.code} - ${e.message}');
-    } catch (e, stack) {
-      navigator.pop(); // Close loading
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Unexpected error occurred'),
+          content: Text('Failed to cancel booking'),
           backgroundColor: Colors.red,
         ),
       );
-      debugPrint('Error: $e\n$stack');
+      debugPrint('Error: $e\n$stackTrace');
     }
   }
 
