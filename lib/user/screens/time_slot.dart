@@ -334,6 +334,26 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                   final userName = userData?['username'] ?? 'N/A';
                   final userPhone = userData?['mobile'] ?? 'N/A';
                   final userLocation = userData?['location'] ?? 'N/A';
+// ✅ Check if a booking already exists for same center, date, time, and serviceType
+                  final existingBooking = await FirebaseFirestore.instance
+                      .collection('bookings')
+                      .where('centerUid', isEqualTo: widget.selectedCenterUid)
+                      .where('date', isEqualTo: formattedDate)
+                      .where('time', isEqualTo: selectedTimeSlot)
+                      .where('serviceType', isEqualTo: widget.serviceType)
+                      .get();
+
+                  if (existingBooking.docs.isNotEmpty) {
+                    Navigator.of(context).pop(); // Close loader
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                            "This time slot for the selected service is already booked."),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
 
                   // ✅ Create booking document with user info included
                   DocumentReference bookingRef = await FirebaseFirestore

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smart_wash/admin/app_bar2.dart';
@@ -12,41 +11,6 @@ class ViewBookingsPage extends StatefulWidget {
 }
 
 class _ViewBookingsPageState extends State<ViewBookingsPage> {
-  int _unreadCount = 0;
-  late StreamSubscription<QuerySnapshot> _bookingsSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _setupBookingsListener();
-  }
-
-  void _setupBookingsListener() {
-    _bookingsSubscription = FirebaseFirestore.instance
-        .collection('bookings')
-        .where('centerUid', isEqualTo: widget.adminUid)
-        .where('notificationSent', isEqualTo: true)
-        .snapshots()
-        .listen((snapshot) {
-      setState(() {
-        _unreadCount = snapshot.docs.length;
-      });
-    });
-  }
-
-  Future<void> _markAsRead(String bookingId) async {
-    await FirebaseFirestore.instance
-        .collection('bookings')
-        .doc(bookingId)
-        .update({'notificationSent': false});
-  }
-
-  @override
-  void dispose() {
-    _bookingsSubscription.cancel();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,7 +37,6 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                 ),
               );
             }
-
             if (snapshot.hasError) {
               return Center(
                 child: Text(
@@ -85,7 +48,6 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                 ),
               );
             }
-
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return Center(
                 child: Column(
@@ -132,6 +94,7 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                 } else if (data['status'] == "Pending") {
                   statusColor = Colors.orange;
                 }
+
                 return GestureDetector(
                   onTap: () {
                     _showStatusOptions(context, doc.id);
@@ -303,7 +266,10 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
             ),
-            onPressed: () => _updateStatus(context, bookingId, "Confirmed"),
+            onPressed: () async {
+              await _updateStatus(context, bookingId, "Confirmed");
+              Navigator.pop(context);
+            },
             child: const Text(
               "Confirm",
               style: TextStyle(color: Colors.white),
@@ -313,7 +279,10 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
             ),
-            onPressed: () => _updateStatus(context, bookingId, "Rejected"),
+            onPressed: () async {
+              await _updateStatus(context, bookingId, "Rejected");
+              Navigator.pop(context);
+            },
             child: const Text("Reject", style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -324,12 +293,17 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
   Future<void> _updateStatus(
       BuildContext context, String bookingId, String status) async {
     try {
+      // First update the status
       await FirebaseFirestore.instance
           .collection('bookings')
           .doc(bookingId)
-          .update({'status': status, 'notificationSent': false});
+          .update({'status': status});
 
-      Navigator.pop(context);
+      // Then update the notificationSent field separately
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(bookingId)
+          .update({'notificationSent': false});
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

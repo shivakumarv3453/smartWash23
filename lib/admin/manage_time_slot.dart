@@ -44,7 +44,7 @@ class _ManageTimeSlotsPopupState extends State<ManageTimeSlotsPopup> {
           timeSlots = Map.from(defaultTimeSlots);
           fetchedSlots.forEach((key, value) {
             if (timeSlots.containsKey(key)) {
-              timeSlots[key] = value as bool;
+              timeSlots[key] = !(value as bool);
             }
           });
         });
@@ -61,7 +61,7 @@ class _ManageTimeSlotsPopupState extends State<ManageTimeSlotsPopup> {
           .doc(widget.adminUid)
           .set({
         'disabled_time_slots':
-            timeSlots.map((key, value) => MapEntry(key, value)),
+            timeSlots.map((key, value) => MapEntry(key, !value)),
       }, SetOptions(merge: true));
     } catch (e) {
       print("Error saving data: $e");
@@ -82,8 +82,11 @@ class _ManageTimeSlotsPopupState extends State<ManageTimeSlotsPopup> {
               setState(() {
                 timeSlots[time] = value;
               });
-              saveDisabledData();
+
+              // Save only after state is updated
+              Future.microtask(() => saveDisabledData());
             },
+
           );
         }).toList(),
       ),
