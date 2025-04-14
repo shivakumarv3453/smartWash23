@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smart_wash/user/app_bar.dart';
+import 'package:smart_wash/user/screens/payment.dart';
 
 class BookingDetailsScreen extends StatelessWidget {
   final String bookingId;
@@ -14,6 +15,9 @@ class BookingDetailsScreen extends StatelessWidget {
   });
 
   void _showCancelConfirmation(BuildContext context) {
+    // Check if the booking status is confirmed before showing the cancellation fee
+    final isConfirmed = bookingData['status'] == 'Confirmed';
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -31,11 +35,12 @@ class BookingDetailsScreen extends StatelessWidget {
               const Icon(Icons.warning_amber_rounded,
                   color: Colors.orange, size: 48),
               const SizedBox(height: 16),
-              const Text(
-                "10% cancellation fee will apply",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16),
-              ),
+              // if (isConfirmed)
+              //   const Text(
+              //     "10% cancellation fee will apply",
+              //     textAlign: TextAlign.center,
+              //     style: TextStyle(fontSize: 16),
+              //   ),
               const SizedBox(height: 8),
               Text(
                 "${bookingData['center']} • ${bookingData['date']}",
@@ -85,17 +90,14 @@ class BookingDetailsScreen extends StatelessWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: const AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Processing cancellation...'),
-            ],
-          ),
+      builder: (_) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Processing cancellation...'),
+          ],
         ),
       ),
     );
@@ -109,10 +111,8 @@ class BookingDetailsScreen extends StatelessWidget {
         'cancelledAt': FieldValue.serverTimestamp(),
         'lastUpdatedBy': currentUser.uid,
       });
-
       navigator.pop(); // Close the loading dialog
       navigator.pop(); // Go back to previous screen
-
       messenger.showSnackBar(
         const SnackBar(content: Text('Booking cancelled successfully')),
       );
@@ -160,7 +160,6 @@ class BookingDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = bookingData['status'] ?? 'Pending';
-
     return Scaffold(
       appBar: custAppBar(context, 'Booking Details'),
       body: Column(
@@ -213,7 +212,6 @@ class BookingDetailsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-
                   // Booking details section
                   const Text(
                     "BOOKING DETAILS",
@@ -232,16 +230,15 @@ class BookingDetailsScreen extends StatelessWidget {
                       "Service", bookingData['serviceType'] ?? 'N/A'),
                   _buildDetailRow("Date", bookingData['date'] ?? 'N/A'),
                   _buildDetailRow("Time", bookingData['time'] ?? 'N/A'),
-
-                  // Additional space if needed
                   const SizedBox(height: 40),
                 ],
               ),
             ),
           ),
-
           // Cancel button (conditionally shown)
-          if (status != 'Cancelled' && status != 'Completed')
+          if (status != 'Cancelled' &&
+              status != 'Completed' &&
+              status != 'Rejected')
             Padding(
               padding: const EdgeInsets.all(20),
               child: SizedBox(
@@ -265,6 +262,34 @@ class BookingDetailsScreen extends StatelessWidget {
                 ),
               ),
             ),
+          // Proceed with payment button (only if the booking is confirmed)
+          if (status == 'Confirmed')
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.payment, size: 20),
+                  label: const Text(
+                    "Proceed with Payment",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade50,
+                    foregroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.blue.shade100),
+                    ),
+                  ),
+                  onPressed: () {
+                    // Navigate to the payment page
+                    Navigator.pushNamed(context, '/payment');
+                  },
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -279,7 +304,7 @@ class BookingDetailsScreen extends StatelessWidget {
       case 'pending':
         return Colors.orange;
       default:
-        return Colors.blue;
+        return Colors.grey;
     }
   }
 

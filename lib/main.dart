@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_wash/login/login.dart';
 import 'package:smart_wash/user/screens/dash.dart';
+import 'package:smart_wash/user/screens/payment.dart';
 // import 'package:smart_wash/login.dart';
 // import 'dart:html' as html;
 
@@ -45,6 +46,9 @@ class MyApp extends StatelessWidget {
       title: 'Smart Wash',
       debugShowCheckedModeBanner: false,
       home: AuthWrapper(),
+      routes: {
+        '/payment': (context) => PaymentPage(), // ✅ Named route goes here
+      },
     );
   }
 }
