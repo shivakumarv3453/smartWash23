@@ -1,11 +1,16 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:smart_wash/user/app_bar.dart';
 import 'package:smart_wash/user/bookings/booking_list.dart';
 // import 'package:smart_wash/booking_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smart_wash/user/screens/profile.dart';
 import 'package:intl/intl.dart';
+import 'package:smart_wash/utils/location_utils.dart';
+import 'package:smart_wash/utils/price_calculator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class TimeSlotPage extends StatefulWidget {
   final String selectedCenterUid;
@@ -14,10 +19,6 @@ class TimeSlotPage extends StatefulWidget {
   final String carType;
   final String washType;
   final String asset;
-  // final double userLat;
-  // final double userLon;
-  // final double centerLat;
-  // final double centerLon;
 
   const TimeSlotPage({
     super.key,
@@ -27,10 +28,6 @@ class TimeSlotPage extends StatefulWidget {
     required this.carType,
     required this.washType,
     required this.asset,
-    // required this.centerLat,
-    // required this.centerLon,
-    // required this.userLat,
-    // required this.userLon
   });
 
   @override
@@ -45,11 +42,83 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
   DateTime today = DateTime.now();
   DateTime lastSelectableDate = DateTime.now().add(const Duration(days: 7));
 
+  LatLng? _partnerLocation;
+
   @override
   void initState() {
     super.initState();
     _generateCalendar();
     _fetchDisabledTimeSlots();
+    _fetchPartnerLocation().then((_) {
+      if (_partnerLocation == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                "Could not fetch partner location. Using default pricing."),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    });
+  }
+
+  Future<void> _fetchPartnerLocation() async {
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('partners')
+          .doc(widget.selectedCenterUid)
+          .get();
+
+      if (!doc.exists) {
+        _setDefaultLocation();
+        return;
+      }
+
+      final data = doc.data() as Map<String, dynamic>? ?? {};
+      final address = data['location']?.toString() ?? '';
+      debugPrint("Partner Firestore address: $address");
+
+      final coordinates = await getCoordinatesFromAddress(address);
+      if (coordinates != null) {
+        setState(() {
+          _partnerLocation = coordinates;
+        });
+      } else {
+        debugPrint("Using default coordinates for partner due to null");
+        _setDefaultLocation();
+      }
+    } catch (e) {
+      debugPrint("Location fetch error: $e");
+      _setDefaultLocation();
+    }
+  }
+
+  LatLng _getDefaultLocation() => const LatLng(12.9716, 77.5946); // Bangalore
+
+  void _setDefaultLocation() {
+    setState(() => _partnerLocation = _getDefaultLocation());
+  }
+
+  Future<void> _getPartnerLocation() async {
+    DocumentSnapshot doc = await FirebaseFirestore.instance
+        .collection('partners')
+        .doc(widget.selectedCenterUid)
+        .get();
+
+    if (doc.exists) {
+      var data = doc.data() as Map<String, dynamic>;
+      String address = data['location'] ?? ''; // Get the address from Firestore
+
+      LatLng? coordinates = await getCoordinatesFromAddress(address);
+      if (coordinates != null) {
+        setState(() {
+          _partnerLocation =
+              coordinates; // Store coordinates in _partnerLocation
+        });
+      } else {
+        print("Could not fetch partner location");
+      }
+    }
   }
 
   void _fetchDisabledTimeSlots() async {
@@ -271,21 +340,146 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
   }
 
   void _showConfirmationDialog(BuildContext context) {
+    // Calculate price and show in dialog
+    Future<Map<String, dynamic>> _calculatePriceDetails() async {
+      try {
+        bool usingExactLocation = true;
+        LatLng userLocation;
+        LatLng partnerLocation;
+
+        // Get user location with fallback
+        try {
+          Position position = await Geolocator.getCurrentPosition();
+          userLocation = LatLng(position.latitude, position.longitude);
+        } catch (e) {
+          debugPrint("Using default user location: $e");
+          userLocation = const LatLng(12.9716, 77.5946); // Bangalore
+          usingExactLocation = false;
+        }
+
+        // Get partner location
+        partnerLocation = _partnerLocation ?? const LatLng(12.9716, 77.5946);
+        if (_partnerLocation == null) {
+          usingExactLocation = false;
+        }
+
+        debugPrint(
+            "User Location: ${userLocation.latitude}, ${userLocation.longitude}");
+        debugPrint(
+            "Partner Location: ${partnerLocation.latitude}, ${partnerLocation.longitude}");
+
+        final price = PriceCalculator.calculateFinalPrice(
+          carType: widget.carType,
+          washType: widget.washType,
+          serviceType: widget.serviceType,
+          userLat: userLocation.latitude,
+          userLng: userLocation.longitude,
+          centerLat: partnerLocation.latitude,
+          centerLng: partnerLocation.longitude,
+        );
+
+        return {
+          'price': price,
+          'isExact': usingExactLocation,
+          'message': usingExactLocation
+              ? null
+              : "Using approximate location for pricing",
+        };
+      } catch (e) {
+        debugPrint("Price calculation error: $e");
+
+        final basePrice = PriceCalculator.basePrices[widget.carType]
+                ?[widget.washType]?[widget.serviceType] ??
+            0;
+
+        return {
+          'price': basePrice,
+          'isExact': false,
+          'message': "Using base price only",
+        };
+      }
+    }
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text("Confirm Booking"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text("Center: ${widget.selectedCenter}"),
-              Text("Service: ${widget.serviceType}"),
-              Text("Car: ${widget.carType}"),
-              Text("Wash: ${widget.washType}"),
-              Text("Date: ${selectedDate.toLocal().toString().split(' ')[0]}"),
-              Text("Time: $selectedTimeSlot"),
-            ],
+          content: FutureBuilder<Map<String, dynamic>>(
+            future: _calculatePriceDetails(),
+            builder: (context, snapshot) {
+              Widget content;
+
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                content = Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildBookingInfo(),
+                    const SizedBox(height: 16),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 8),
+                    const Text("Calculating price..."),
+                  ],
+                );
+              } else if (snapshot.hasError) {
+                content = Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildBookingInfo(),
+                    const SizedBox(height: 16),
+                    const Icon(Icons.error, color: Colors.red),
+                    const SizedBox(height: 8),
+                    const Text("Could not calculate price"),
+                    Text(
+                      "₹${PriceCalculator.basePrices[widget.carType]?[widget.washType]?[widget.serviceType] ?? 0}",
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Base price only",
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ],
+                );
+              } else {
+                final data = snapshot.data!;
+                content = Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildBookingInfo(),
+                    const SizedBox(height: 16),
+                    Text(
+                      "₹${data['price']}",
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                    if (data['message'] != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        data['message'],
+                        style: TextStyle(
+                          color: Colors.orange.shade800,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Text(
+                      data['isExact'] ? "Exact price" : "Approximate price",
+                      style: TextStyle(
+                        color: data['isExact'] ? Colors.green : Colors.orange,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              return content;
+            },
           ),
           actions: [
             TextButton(
@@ -294,8 +488,9 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
             ),
             TextButton(
               onPressed: () async {
-                final userId = FirebaseAuth.instance.currentUser?.uid;
+                if (selectedTimeSlot == null) return;
 
+                final userId = FirebaseAuth.instance.currentUser?.uid;
                 if (userId == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Please login to book")),
@@ -332,17 +527,20 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                   final formattedDate =
                       "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
 
-                  // ✅ Fetch user info from `users` collection
+                  // Recalculate price to ensure we have the latest
+                  final price = await _calculatePriceDetails();
+
+                  // Fetch user info
                   final userDoc = await FirebaseFirestore.instance
                       .collection('users')
                       .doc(userId)
                       .get();
                   final userData = userDoc.data();
-
                   final userName = userData?['username'] ?? 'N/A';
                   final userPhone = userData?['mobile'] ?? 'N/A';
                   final userLocation = userData?['location'] ?? 'N/A';
-// ✅ Check if a booking already exists for same center, date, time, and serviceType
+
+                  // Check for existing booking
                   final existingBooking = await FirebaseFirestore.instance
                       .collection('bookings')
                       .where('centerUid', isEqualTo: widget.selectedCenterUid)
@@ -363,7 +561,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                     return;
                   }
 
-                  // ✅ Create booking document with user info included
+                  // Create booking
                   DocumentReference bookingRef = await FirebaseFirestore
                       .instance
                       .collection('bookings')
@@ -380,11 +578,20 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                     'userName': userName,
                     'userPhone': userPhone,
                     'userLocation': userLocation,
+                    'price': price,
                     'timestamp': FieldValue.serverTimestamp(),
                     'notificationSent': false,
+                    'userCoordinates': GeoPoint(
+                      (await Geolocator.getCurrentPosition()).latitude,
+                      (await Geolocator.getCurrentPosition()).longitude,
+                    ),
+                    'centerCoordinates': GeoPoint(
+                      _partnerLocation!.latitude,
+                      _partnerLocation!.longitude,
+                    ),
                   });
 
-                  // Send notification to admin
+                  // Send notification
                   await FirebaseFirestore.instance
                       .collection('notifications')
                       .doc()
@@ -398,7 +605,6 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                     'read': false,
                   });
 
-                  // Mark notification as sent
                   await bookingRef.update({'notificationSent': true});
 
                   Navigator.of(context).pop(); // Close loader
@@ -406,7 +612,6 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                     const SnackBar(
                         content: Text("Booking created successfully!")),
                   );
-
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(
@@ -426,6 +631,20 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildBookingInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Center: ${widget.selectedCenter}"),
+        Text("Service: ${widget.serviceType}"),
+        Text("Car: ${widget.carType}"),
+        Text("Wash: ${widget.washType}"),
+        Text("Date: ${DateFormat('dd MMM yyyy').format(selectedDate)}"),
+        Text("Time: $selectedTimeSlot"),
+      ],
     );
   }
 }

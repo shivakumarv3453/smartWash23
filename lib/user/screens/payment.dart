@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:smart_wash/user/app_bar.dart';
 
 class PaymentPage extends StatelessWidget {
+  const PaymentPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

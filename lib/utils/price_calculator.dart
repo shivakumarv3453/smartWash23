@@ -1,55 +1,80 @@
-// lib/utils/price_calculator.dart
 import 'dart:math';
 
-double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-  const R = 6371; // Radius of the Earth in kilometers
-  final dLat = (lat2 - lat1) * pi / 180;
-  final dLon = (lon2 - lon1) * pi / 180;
-  final a = sin(dLat / 2) * sin(dLat / 2) +
-      cos(lat1 * pi / 180) *
-          cos(lat2 * pi / 180) *
-          sin(dLon / 2) *
-          sin(dLon / 2);
-  final c = 2 * atan2(sqrt(a), sqrt(1 - a));
-  return R * c; // Distance in kilometers
-}
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-double calculatePrice(
-  String carType,
-  String washType,
-  String serviceType,
-  double userLat,
-  double userLon,
-  double centerLat,
-  double centerLon,
-) {
-  const double BASE_PRICE = 10.0;
-
-  const Map<String, double> CAR_TYPE_MULTIPLIERS = {
-    'SUV': 1.2,
-    'Sedan': 1.1,
+class PriceCalculator {
+  static const Map<String, Map<String, Map<String, int>>> basePrices = {
+    'Sedan': {
+      'Standard': {'atCenter': 200, 'onSite': 250},
+      'Premium': {'atCenter': 300, 'onSite': 350},
+      'Ultra-Premium': {'atCenter': 400, 'onSite': 450},
+    },
+    'SUV': {
+      'Standard': {'atCenter': 250, 'onSite': 300},
+      'Premium': {'atCenter': 350, 'onSite': 400},
+      'Ultra-Premium': {'atCenter': 450, 'onSite': 500},
+    },
+    'hatchback': {
+      'Standard': {'atCenter': 150, 'onSite': 200},
+      'Premium': {'atCenter': 250, 'onSite': 300},
+      'Ultra-Premium': {'atCenter': 350, 'onSite': 400},
+    },
   };
 
-  const Map<String, double> WASH_TYPE_MULTIPLIERS = {
-    'Standard': 1.0,
-    'Premium': 1.5,
-    'Ultra-Premium': 2.0,
-  };
+  static int calculateFinalPrice({
+    required String carType,
+    required String washType,
+    required String serviceType,
+    required double userLat,
+    required double userLng,
+    required double centerLat,
+    required double centerLng,
+  }) {
+    // Normalize values to match keys in the basePrices map
+    final normalizedCarType = carType.trim();
+    final normalizedWashType = washType.replaceAll(' Wash', '').trim();
+    final normalizedServiceType = serviceType.toLowerCase() == 'at-center'
+        ? 'atCenter'
+        : serviceType.toLowerCase() == 'on-site'
+            ? 'onSite'
+            : serviceType;
 
-  const Map<String, double> SERVICE_TYPE_FEES = {
-    'At-Center': 5.0,
-    'On-Site': 10.0,
-  };
+    debugPrint(
+        "Normalized keys: $normalizedCarType / $normalizedWashType / $normalizedServiceType");
 
-  double distance = calculateDistance(userLat, userLon, centerLat, centerLon);
+    // Fetch basePrice
+    final basePrice = basePrices[normalizedCarType]?[normalizedWashType]
+            ?[normalizedServiceType] ??
+        0;
 
-  double price = BASE_PRICE;
-  price *= CAR_TYPE_MULTIPLIERS[carType] ?? 1.0;
-  price *= WASH_TYPE_MULTIPLIERS[washType] ?? 1.0;
-  price += SERVICE_TYPE_FEES[serviceType] ?? 0.0;
+    debugPrint("Fetched base price: ₹$basePrice");
 
-  // Distance fee (per km)
-  price += distance * 1.0;
+    final distance = _calculateDistance(userLat, userLng, centerLat, centerLng);
+    final distanceCharge = (distance * 10).round(); // ₹10 per km
+    final total = basePrice + distanceCharge;
 
-  return price;
+    debugPrint("Distance: ${distance.toStringAsFixed(2)} km");
+    debugPrint("Distance charge: ₹$distanceCharge");
+    debugPrint("Final total: ₹$total");
+
+    return total;
+  }
+
+  static double _calculateDistance(
+      double lat1, double lon1, double lat2, double lon2) {
+    const earthRadius = 6371; // in km
+    final dLat = _deg2rad(lat2 - lat1);
+    final dLon = _deg2rad(lon2 - lon1);
+
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_deg2rad(lat1)) *
+            cos(_deg2rad(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earthRadius * c;
+  }
+
+  static double _deg2rad(double deg) => deg * (pi / 180);
 }
