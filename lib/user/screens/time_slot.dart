@@ -404,7 +404,12 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text("Confirm Booking"),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            "Confirm Booking",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
           content: FutureBuilder<Map<String, dynamic>>(
             future: _calculatePriceDetails(),
             builder: (context, snapshot) {
@@ -415,9 +420,9 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildBookingInfo(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     const CircularProgressIndicator(),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     const Text("Calculating price..."),
                   ],
                 );
@@ -426,18 +431,22 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildBookingInfo(),
-                    const SizedBox(height: 16),
-                    const Icon(Icons.error, color: Colors.red),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 24),
+                    const Icon(Icons.error_outline,
+                        color: Colors.red, size: 36),
+                    const SizedBox(height: 12),
                     const Text("Could not calculate price"),
+                    const SizedBox(height: 8),
                     Text(
                       "₹${PriceCalculator.basePrices[widget.carType]?[widget.washType]?[widget.serviceType] ?? 0}",
-                      style: const TextStyle(fontSize: 18),
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w600),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
                       "Base price only",
-                      style: TextStyle(color: Colors.grey.shade600),
+                      style:
+                          TextStyle(color: Colors.grey.shade600, fontSize: 12),
                     ),
                   ],
                 );
@@ -445,19 +454,22 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                 final data = snapshot.data!;
                 content = Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildBookingInfo(),
-                    const SizedBox(height: 16),
-                    Text(
-                      "₹${data['price']}",
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
+                    const SizedBox(height: 20),
+                    Center(
+                      child: Text(
+                        "₹${data['price']}",
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
                       ),
                     ),
                     if (data['message'] != null) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       Text(
                         data['message'],
                         style: TextStyle(
@@ -466,27 +478,44 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 8),
-                    Text(
-                      data['isExact'] ? "Exact price" : "Approximate price",
-                      style: TextStyle(
-                        color: data['isExact'] ? Colors.green : Colors.orange,
-                        fontSize: 12,
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Text(
+                        data['isExact']
+                            ? "Your total price"
+                            : "Approximate price",
+                        style: TextStyle(
+                          color: data['isExact'] ? Colors.green : Colors.orange,
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ),
                   ],
                 );
               }
 
-              return content;
+              return SingleChildScrollView(child: content);
             },
           ),
+          actionsPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text("Cancel", style: TextStyle(color: Colors.red)),
+              child: const Text(
+                "Cancel",
+                style: TextStyle(color: Colors.red),
+              ),
             ),
-            TextButton(
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
               onPressed: () async {
                 if (selectedTimeSlot == null) return;
 
@@ -625,9 +654,12 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                   );
                 }
               },
-              child:
-                  const Text("Confirm", style: TextStyle(color: Colors.green)),
-            ),
+              child: const Text(
+                "Confirm",
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            )
           ],
         );
       },

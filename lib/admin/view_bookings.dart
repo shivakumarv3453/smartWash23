@@ -87,7 +87,7 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
 
                 // Determine status color
                 Color statusColor = Colors.grey;
-                if (data['status'] == "Confirmed") {
+                if (data['status'].toString().startsWith("Confirmed")) {
                   statusColor = Colors.green;
                 } else if (data['status'] == "Rejected") {
                   statusColor = Colors.red;
@@ -267,7 +267,8 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
               backgroundColor: Colors.green,
             ),
             onPressed: () async {
-              await _updateStatus(context, bookingId, "Confirmed");
+              await _updateStatus(
+                  context, bookingId, "Confirmed - Awaiting Payment");
               Navigator.pop(context);
             },
             child: const Text(

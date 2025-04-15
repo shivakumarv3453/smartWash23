@@ -99,7 +99,12 @@ class BookingListScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 final booking = snapshot.data!.docs[index];
                 final data = booking.data() as Map<String, dynamic>;
-                final status = data['status'] ?? 'Pending';
+                String status = data['status'] ?? 'Pending';
+                // final paymentStatus = data['paymentStatus'] ?? 'Pending';
+
+                if (status.toString().startsWith('Confirmed')) {
+                  status = 'Confirmed - Proceed with Payment';
+                }
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -225,12 +230,14 @@ class BookingListScreen extends StatelessWidget {
         return Colors.green.shade100;
       case 'cancelled':
         return Colors.grey.shade200;
+      case 'rejected':
+        return Colors.grey.shade200;
       case 'pending':
         return Colors.orange.shade100;
       case 'confirmed':
-        return Colors.blue.shade100;
+        return Colors.green.shade100;
       default:
-        return Colors.grey.shade100;
+        return const Color.fromARGB(255, 113, 243, 117);
     }
   }
 
@@ -240,12 +247,14 @@ class BookingListScreen extends StatelessWidget {
         return Colors.green.shade800;
       case 'cancelled':
         return Colors.grey.shade800;
+      case 'rejected':
+        return Colors.grey.shade800;
       case 'pending':
         return Colors.orange.shade800;
       case 'confirmed':
         return Colors.blue.shade800;
       default:
-        return Colors.grey.shade800;
+        return const Color.fromARGB(255, 39, 127, 43);
     }
   }
 }

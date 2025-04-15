@@ -159,7 +159,12 @@ class BookingDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = bookingData['status'] ?? 'Pending';
+    final rawStatus = bookingData['status'] ?? 'Pending';
+
+    // Customize status label for user
+    final status = rawStatus == 'Confirmed - Awaiting Payment'
+        ? 'Confirmed - Proceed with Payment'
+        : rawStatus;
     return Scaffold(
       appBar: custAppBar(context, 'Booking Details'),
       body: Column(
@@ -262,8 +267,8 @@ class BookingDetailsScreen extends StatelessWidget {
                 ),
               ),
             ),
-          // Proceed with payment button (only if the booking is confirmed)
-          if (status == 'Confirmed')
+          // Proceed with payment button (if booking is in Confirmed state)
+          if (status.toString().startsWith('Confirmed'))
             Padding(
               padding: const EdgeInsets.all(20),
               child: SizedBox(
@@ -304,7 +309,7 @@ class BookingDetailsScreen extends StatelessWidget {
       case 'pending':
         return Colors.orange;
       default:
-        return Colors.grey;
+        return Colors.green;
     }
   }
 
