@@ -10,7 +10,7 @@ import 'package:smart_wash/user/screens/profile.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_wash/utils/location_utils.dart';
 import 'package:smart_wash/utils/price_calculator.dart';
-import 'package:geocoding/geocoding.dart';
+// import 'package:geocoding/geocoding.dart';
 
 class TimeSlotPage extends StatefulWidget {
   final String selectedCenterUid;
@@ -97,28 +97,6 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
 
   void _setDefaultLocation() {
     setState(() => _partnerLocation = _getDefaultLocation());
-  }
-
-  Future<void> _getPartnerLocation() async {
-    DocumentSnapshot doc = await FirebaseFirestore.instance
-        .collection('partners')
-        .doc(widget.selectedCenterUid)
-        .get();
-
-    if (doc.exists) {
-      var data = doc.data() as Map<String, dynamic>;
-      String address = data['location'] ?? ''; // Get the address from Firestore
-
-      LatLng? coordinates = await getCoordinatesFromAddress(address);
-      if (coordinates != null) {
-        setState(() {
-          _partnerLocation =
-              coordinates; // Store coordinates in _partnerLocation
-        });
-      } else {
-        print("Could not fetch partner location");
-      }
-    }
   }
 
   void _fetchDisabledTimeSlots() async {

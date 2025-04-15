@@ -5,59 +5,6 @@ import 'package:smart_wash/user/screens/calendar.dart';
 import 'package:smart_wash/login/login.dart';
 import 'package:smart_wash/admin/partner_profile.dart';
 
-int _unreadNotifications = 3;
-
-void _showNotificationsDialog(BuildContext context, String adminUid) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text("Notifications"),
-      content: const Text("You have new booking notifications."),
-      actions: [
-        TextButton(
-          onPressed: () async {
-            Navigator.pop(context); // Close dialog first
-            print(
-                "Attempting to navigate to ViewBookingsPage with adminUid: $adminUid"); // Debug print
-
-            if (adminUid.isEmpty) {
-              print("Error: adminUid is null or empty");
-              return;
-            }
-
-            // Wait for the frame to finish
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              try {
-                print("Marking notifications as read...");
-                final bookings = await FirebaseFirestore.instance
-                    .collection('bookings')
-                    .where('centerUid', isEqualTo: adminUid)
-                    .where('notificationSent', isEqualTo: true)
-                    .get();
-
-                for (var doc in bookings.docs) {
-                  await doc.reference.update({'notificationSent': false});
-                }
-
-                print("Navigating to ViewBookingsPage...");
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ViewBookingsPage(adminUid: adminUid),
-                  ),
-                );
-              } catch (e) {
-                print("Navigation error: $e");
-              }
-            });
-          },
-          child: const Text("View"),
-        ),
-      ],
-    ),
-  );
-}
-
 PreferredSizeWidget custAppBarr(
   BuildContext context,
   String title, {
