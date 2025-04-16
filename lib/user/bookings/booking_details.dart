@@ -290,7 +290,14 @@ class BookingDetailsScreen extends StatelessWidget {
                   ),
                   onPressed: () {
                     // Navigate to the payment page
-                    Navigator.pushNamed(context, '/payment');
+                    Navigator.pushNamed(
+                      context,
+                      '/payment',
+                      arguments: {
+                        'bookingId': bookingId,
+                        'amount': 1,
+                      },
+                    );
                   },
                 ),
               ),
