@@ -408,7 +408,7 @@ class _DashState extends State<Dash> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              "On-Site Service",
+                                              "On-Site Wash",
                                               style: TextStyle(
                                                 fontSize: 18,
                                                 fontWeight: FontWeight.bold,
@@ -455,7 +455,7 @@ class _DashState extends State<Dash> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              "At-Center Service",
+                                              "Pickup & Wash",
                                               style: TextStyle(
                                                 fontSize: 18,
                                                 fontWeight: FontWeight.bold,
@@ -466,7 +466,7 @@ class _DashState extends State<Dash> {
                                             ),
                                             const SizedBox(height: 5),
                                             Text(
-                                              "Bring your car to our nearest center.",
+                                              "We'll come to your location and collect your car.",
                                               style: TextStyle(fontSize: 16),
                                             ),
                                           ],

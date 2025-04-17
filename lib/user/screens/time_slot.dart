@@ -319,7 +319,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
 
   void _showConfirmationDialog(BuildContext context) {
     // Calculate price and show in dialog
-    Future<Map<String, dynamic>> _calculatePriceDetails() async {
+    Future<Map<String, dynamic>> calculatePriceDetails() async {
       try {
         bool usingExactLocation = true;
         LatLng userLocation;
@@ -389,7 +389,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
           ),
           content: FutureBuilder<Map<String, dynamic>>(
-            future: _calculatePriceDetails(),
+            future: calculatePriceDetails(),
             builder: (context, snapshot) {
               Widget content;
 
@@ -535,7 +535,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                       "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
 
                   // Recalculate price to ensure we have the latest
-                  final price = await _calculatePriceDetails();
+                  final price = await calculatePriceDetails();
 
                   // Fetch user info
                   final userDoc = await FirebaseFirestore.instance

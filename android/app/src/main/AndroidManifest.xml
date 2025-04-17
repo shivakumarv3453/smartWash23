@@ -27,6 +27,13 @@
             </intent-filter>
         </activity>
 
+        <queries>
+  <intent>
+    <action android:name="android.settings.APPLICATION_DETAILS_SETTINGS"/>
+  </intent>
+</queries>
+
+
         <!-- Meta-data required by Flutter -->
         <meta-data
             android:name="flutterEmbedding"
@@ -45,6 +52,6 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET"/>
-
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 </manifest>
     

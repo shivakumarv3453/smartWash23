@@ -31,23 +31,47 @@ class PriceCalculator {
     required double centerLat,
     required double centerLng,
   }) {
-    // Normalize values to match keys in the basePrices map
     final normalizedCarType = carType.trim();
-    final normalizedWashType = washType.replaceAll(' Wash', '').trim();
+
+    String normalizedWashType(String value) => value
+        .toLowerCase()
+        .replaceAll('-', '')
+        .replaceAll(' wash', '')
+        .replaceAll(' ', '')
+        .trim();
+
     final normalizedServiceType = serviceType.toLowerCase() == 'at-center'
         ? 'atCenter'
         : serviceType.toLowerCase() == 'on-site'
             ? 'onSite'
             : serviceType;
 
+    final carTypePrices = basePrices[normalizedCarType];
+    if (carTypePrices == null) {
+      debugPrint("No pricing found for car type: $normalizedCarType");
+      return 0;
+    }
+
+    final inputNormalizedWash = normalizedWashType(washType);
+    String? matchedWashTypeKey;
+
+    for (var key in carTypePrices.keys) {
+      if (normalizedWashType(key) == inputNormalizedWash) {
+        matchedWashTypeKey = key;
+        break;
+      }
+    }
+
+    if (matchedWashTypeKey == null) {
+      debugPrint("No matching wash type for: $washType");
+      return 0;
+    }
+
+    final basePrice =
+        carTypePrices[matchedWashTypeKey]?[normalizedServiceType] ?? 0;
+
     debugPrint(
-        "Normalized keys: $normalizedCarType / $normalizedWashType / $normalizedServiceType");
-
-    // Fetch basePrice
-    final basePrice = basePrices[normalizedCarType]?[normalizedWashType]
-            ?[normalizedServiceType] ??
-        0;
-
+        "Normalized keys: $normalizedCarType / $matchedWashTypeKey / $normalizedServiceType");
     debugPrint("Fetched base price: ₹$basePrice");
 
     final distance = _calculateDistance(userLat, userLng, centerLat, centerLng);
