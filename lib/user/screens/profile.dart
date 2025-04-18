@@ -4,10 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+// import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:smart_wash/user/app_bar.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:smart_wash/utils/location_utils.dart';
+// import 'package:smart_wash/utils/location_utils.dart';
 import 'package:android_intent_plus/android_intent.dart';
 // import 'package:android_intent_plus/intent.dart';
 import 'dart:io' show Platform;
@@ -101,117 +101,6 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       );
     }
-  }
-
-  static const List<String> bangaloreLocalities = [
-    "jayanagar",
-    "jp nagar",
-    "jpnagar",
-    "indiranagar",
-    "koramangala",
-    "whitefield",
-    "marathahalli",
-    "btm layout",
-    "malleshwaram",
-    "basavanagudi",
-    "hsr layout",
-    "electronic city",
-    "hebbal",
-    "kr puram",
-    "yeshwanthpur",
-    "vijayanagar",
-    "rajajinagar",
-    "banashankari",
-    "richmond town",
-    "frazer town",
-    "ulsoor"
-  ];
-
-  String capitalize(String s) {
-    if (s.isEmpty) return s;
-    return s[0].toUpperCase() + s.substring(1).toLowerCase();
-  }
-
-  Future<({bool isValid, String? verifiedAddress})> _verifyBangaloreLocation(
-      String address) async {
-    // First check against our list of known localities
-    final normalizedInput = address.toLowerCase().replaceAll(" ", "");
-    for (final locality in bangaloreLocalities) {
-      if (normalizedInput.contains(locality.replaceAll(" ", ""))) {
-        return (isValid: true, verifiedAddress: capitalize(locality));
-      }
-    }
-
-    // If not found in our list, try geocoding
-    try {
-      List<Location> locations = await locationFromAddress(address)
-          .timeout(const Duration(seconds: 10));
-
-      if (locations.isEmpty) {
-        return (isValid: false, verifiedAddress: null);
-      }
-
-      Location loc = locations.first;
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        loc.latitude,
-        loc.longitude,
-      ).timeout(const Duration(seconds: 10));
-
-      if (placemarks.isEmpty) {
-        // If we can't get placemarks, but have coordinates in Bangalore area
-        if (_isInBangaloreArea(loc.latitude, loc.longitude)) {
-          return (isValid: true, verifiedAddress: address);
-        }
-        return (isValid: false, verifiedAddress: null);
-      }
-
-      Placemark place = placemarks.first;
-      if (!_isBangalorePlacemark(place)) {
-        return (isValid: false, verifiedAddress: null);
-      }
-
-      String verifiedAddress = _buildAddressString(place, address);
-      return (isValid: true, verifiedAddress: verifiedAddress);
-    } catch (e) {
-      print("Geocoding error for '$address': $e");
-      // Fallback: check if address contains any known locality despite geocoding failure
-      if (bangaloreLocalities.any((locality) =>
-          normalizedInput.contains(locality.replaceAll(" ", "")))) {
-        return (isValid: true, verifiedAddress: address);
-      }
-      return (isValid: false, verifiedAddress: null);
-    }
-  }
-
-  bool _isInBangaloreArea(double lat, double lng) {
-    // Approximate Bangalore bounding box
-    const double minLat = 12.75;
-    const double maxLat = 13.25;
-    const double minLng = 77.35;
-    const double maxLng = 77.85;
-    return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
-  }
-
-  bool _isBangalorePlacemark(Placemark place) {
-    String locality = (place.locality ?? "").toLowerCase();
-    String subAdmin = (place.subAdministrativeArea ?? "").toLowerCase();
-    String admin = (place.administrativeArea ?? "").toLowerCase();
-    return locality.contains("bangalore") ||
-        subAdmin.contains("bangalore") ||
-        admin.contains("karnataka");
-  }
-
-  String _buildAddressString(Placemark place, String originalAddress) {
-    String verifiedAddress = [place.locality, place.subLocality, place.street]
-        .where((part) => part != null && part.trim().isNotEmpty)
-        .join(', ');
-
-    // Ensure "Bangalore" is included if not already present
-    if (!verifiedAddress.toLowerCase().contains('bangalore')) {
-      verifiedAddress += ', Bangalore';
-    }
-
-    return verifiedAddress.isNotEmpty ? verifiedAddress : originalAddress;
   }
 
   Future<void> _updateProfile() async {
@@ -355,7 +244,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     // ✅ Defensive check before Firestore update
-    if (finalLocation == null || lat == null || long == null) {
+    if (lat == null) {
       print("Some value is still null: $finalLocation | $lat | $long");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -515,11 +404,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
       Position? position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
-
-      if (position == null) {
-        print('Position is null!');
-        return;
-      }
 
       double lat = position.latitude;
       double lon = position.longitude;

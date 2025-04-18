@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart';
 
 class WashingCenterDropdown extends StatefulWidget {
   final List<String> centerNames;
+  final Map<String, String> centerNameToLocation;
   final Function(String?) onCenterSelected;
 
   const WashingCenterDropdown({
     super.key,
     required this.centerNames,
+    required this.centerNameToLocation,
     required this.onCenterSelected,
   });
 
@@ -27,9 +28,29 @@ class _WashingCenterDropdownState extends State<WashingCenterDropdown> {
         style: TextStyle(color: Colors.grey),
       ),
       items: widget.centerNames.map((String center) {
+        final location = widget.centerNameToLocation[center] ?? "";
         return DropdownMenuItem<String>(
           value: center,
-          child: Text(center, style: const TextStyle(fontSize: 16)),
+          child: RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black,
+                  ),
+                ),
+                TextSpan(
+                  text: " ($location)",
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       }).toList(),
       onChanged: (String? newValue) {

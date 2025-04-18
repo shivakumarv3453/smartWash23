@@ -14,13 +14,13 @@ class BookingListScreen extends StatelessWidget {
     // Show error if user not logged in
     if (userId == null) {
       return Scaffold(
-        appBar: custAppBar(context, 'Your Bookings'),
+        appBar: custAppBar(context, 'Your Bookings', showBack: true),
         body: const Center(child: Text('Please login to view bookings')),
       );
     }
 
     return Scaffold(
-      appBar: custAppBar(context, 'Your Bookings'),
+      appBar: custAppBar(context, 'Your Bookings', showBack: true),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('bookings')

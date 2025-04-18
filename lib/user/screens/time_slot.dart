@@ -346,7 +346,8 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
         debugPrint(
             "Partner Location: ${partnerLocation.latitude}, ${partnerLocation.longitude}");
 
-        final price = PriceCalculator.calculateFinalPrice(
+        // Calculate the base price
+        final basePrice = PriceCalculator.calculateFinalPrice(
           carType: widget.carType,
           washType: widget.washType,
           serviceType: widget.serviceType,
@@ -356,8 +357,30 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
           centerLng: partnerLocation.longitude,
         );
 
+        // Calculate distance-based price component
+        double distancePrice = 0;
+        if (usingExactLocation) {
+          double distance = Geolocator.distanceBetween(
+            userLocation.latitude,
+            userLocation.longitude,
+            partnerLocation.latitude,
+            partnerLocation.longitude,
+          );
+
+          distancePrice = (distance / 1000) * 10; // ₹10 per km
+          debugPrint("Distance: ${(distance / 1000).toStringAsFixed(2)} km");
+          debugPrint("Distance charge: ₹${distancePrice.toStringAsFixed(2)}");
+        }
+
+        double finalPrice = basePrice + 0;
+
+        debugPrint("Base Price: ₹$basePrice");
+        debugPrint("Final Total: ₹${finalPrice.toStringAsFixed(2)}");
+
         return {
-          'price': price,
+          'price': finalPrice
+              .toStringAsFixed(2), // Convert to String with 2 decimal places
+          'distancePrice': distancePrice.toStringAsFixed(2),
           'isExact': usingExactLocation,
           'message': usingExactLocation
               ? null
@@ -371,7 +394,8 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
             0;
 
         return {
-          'price': basePrice,
+          'price': basePrice.toStringAsFixed(2),
+          'distancePrice': '0.00',
           'isExact': false,
           'message': "Using base price only",
         };
@@ -438,7 +462,9 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                     const SizedBox(height: 20),
                     Center(
                       child: Text(
-                        "₹${data['price']}",
+                        data['isExact']
+                            ? "₹${data['price']} " // This is already rounded to 2 decimals
+                            : "₹${(double.parse(data['price']) * 0.8 + 80).round()} - ₹${(double.parse(data['price']) * 0.8 + 140).round()}",
                         style: const TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
@@ -446,13 +472,15 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                         ),
                       ),
                     ),
-                    if (data['message'] != null) ...[
+                    if (double.parse(data['distancePrice']) > 0) ...[
                       const SizedBox(height: 10),
-                      Text(
-                        data['message'],
-                        style: TextStyle(
-                          color: Colors.orange.shade800,
-                          fontSize: 12,
+                      Center(
+                        child: Text(
+                          "Includes ₹${data['distancePrice']} for distance",
+                          style: TextStyle(
+                            color: Colors.blue.shade800,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
@@ -535,7 +563,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                       "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
 
                   // Recalculate price to ensure we have the latest
-                  final price = await calculatePriceDetails();
+                  final finalPrice = await calculatePriceDetails();
 
                   // Fetch user info
                   final userDoc = await FirebaseFirestore.instance
@@ -585,7 +613,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                     'userName': userName,
                     'userPhone': userPhone,
                     'userLocation': userLocation,
-                    'price': price,
+                    'price': finalPrice['price'],
                     'timestamp': FieldValue.serverTimestamp(),
                     'notificationSent': false,
                     'userCoordinates': GeoPoint(
@@ -619,11 +647,10 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                     const SnackBar(
                         content: Text("Booking created successfully!")),
                   );
-                  Navigator.pushAndRemoveUntil(
+                  Navigator.push(
                     context,
                     MaterialPageRoute(
                         builder: (context) => BookingListScreen()),
-                    (route) => false,
                   );
                 } catch (e) {
                   Navigator.of(context).pop(); // Close loader
@@ -637,7 +664,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                 style:
                     TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
-            )
+            ),
           ],
         );
       },
@@ -654,6 +681,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
         Text("Wash: ${widget.washType}"),
         Text("Date: ${DateFormat('dd MMM yyyy').format(selectedDate)}"),
         Text("Time: $selectedTimeSlot"),
+        // Text("Distance price: ₹${pric.toStringAsFixed(2)}"),
       ],
     );
   }

@@ -1,4 +1,18 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.smart_wash">
+
+    <!-- ✅ Moved and combined <queries> -->
+    <queries>
+        <intent>
+            <action android:name="android.settings.APPLICATION_DETAILS_SETTINGS"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+
+    <!-- ✅ Application section -->
     <application
         android:label="smart_wash"
         android:name="${applicationName}"
@@ -27,31 +41,15 @@
             </intent-filter>
         </activity>
 
-        <queries>
-  <intent>
-    <action android:name="android.settings.APPLICATION_DETAILS_SETTINGS"/>
-  </intent>
-</queries>
-
-
         <!-- Meta-data required by Flutter -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
-    <!-- Query for activities that process text -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT" />
-            <data android:mimeType="text/plain" />
-        </intent>
-    </queries>
-
-    <!-- Permissions for location access -->
+    <!-- ✅ Permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 </manifest>
-    

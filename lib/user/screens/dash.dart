@@ -247,6 +247,7 @@ class _DashState extends State<Dash> {
   }
 
   Map<String, String> centerNameToUid = {};
+  Map<String, String> centerNameToLocation = {};
 
   void fetchCenters() async {
     QuerySnapshot<Map<String, dynamic>> snapshot =
@@ -254,22 +255,30 @@ class _DashState extends State<Dash> {
 
     setState(() {
       centerNameToUid.clear();
+      centerNameToLocation.clear();
+
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final centerName = data['center'];
+        final location = data['location'];
 
         if (centerName != null &&
             centerName is String &&
-            centerName.trim().isNotEmpty) {
+            centerName.trim().isNotEmpty &&
+            location != null &&
+            location is String &&
+            location.trim().isNotEmpty) {
           centerNameToUid[centerName] = doc.id;
+          centerNameToLocation[centerName] = location;
         } else {
           print(
-              "Skipped partner ${doc.id} due to missing or invalid 'center' field");
+              "Skipped partner ${doc.id} due to missing/invalid center or location");
         }
       }
     });
 
     print("Center Name to UID Mapping: $centerNameToUid");
+    print("Center Name to Location Mapping: $centerNameToLocation");
   }
 
   @override
@@ -286,6 +295,7 @@ class _DashState extends State<Dash> {
                 children: [
                   WashingCenterDropdown(
                     centerNames: centerNameToUid.keys.toList(),
+                    centerNameToLocation: centerNameToLocation,
                     onCenterSelected: (String? center) async {
                       print("Selected Center: $center");
 

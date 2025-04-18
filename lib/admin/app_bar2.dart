@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_wash/admin/view_bookings.dart';
 import 'package:smart_wash/user/screens/calendar.dart';
@@ -142,11 +143,14 @@ PreferredSizeWidget custAppBarr(
                         builder: (context) => const AdminProfilePage()),
                   );
                 } else if (value == "Logout") {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (context) => const Login()),
-                    (Route<dynamic> route) => false,
-                  );
+                  // Properly sign out from Firebase
+                  FirebaseAuth.instance.signOut().then((_) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => const Login()),
+                      (Route<dynamic> route) => false,
+                    );
+                  });
                 }
               },
               itemBuilder: (BuildContext context) => [

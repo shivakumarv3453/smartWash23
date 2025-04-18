@@ -3,9 +3,10 @@ import 'package:smart_wash/user/bookings/booking_list.dart';
 import 'package:smart_wash/user/screens/calendar.dart';
 import 'package:smart_wash/login/login.dart';
 import 'package:smart_wash/admin/partner.dart';
-import 'package:smart_wash/user/screens/profile.dart'; // Add this import
+import 'package:smart_wash/user/screens/profile.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-custAppBar(BuildContext context, String title) {
+custAppBar(BuildContext context, String title, {bool showBack = false}) {
   return AppBar(
     backgroundColor: Colors.deepOrange,
     title: Center(
@@ -20,7 +21,7 @@ custAppBar(BuildContext context, String title) {
     actions: [
       PopupMenuButton<String>(
         icon: const Icon(Icons.menu),
-        onSelected: (value) {
+        onSelected: (value) async {
           if (value == "Calendar") {
             Navigator.push(context,
                 MaterialPageRoute(builder: (context) => const CalendarPage()));
@@ -37,10 +38,14 @@ custAppBar(BuildContext context, String title) {
             Navigator.push(context,
                 MaterialPageRoute(builder: (context) => const PartnerPage()));
           } else if (value == "Logout") {
+            // Sign out from Firebase
+            await FirebaseAuth.instance.signOut();
+            // Redirect to Login page after sign-out
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const Login()),
-              (Route<dynamic> route) => false,
+              (Route<dynamic> route) =>
+                  false, // This removes all previous routes
             );
           }
         },
@@ -53,7 +58,6 @@ custAppBar(BuildContext context, String title) {
             ),
           ),
           const PopupMenuItem(
-            // NEW ITEM
             value: "Your Bookings",
             child: ListTile(
               leading: Icon(Icons.book),
