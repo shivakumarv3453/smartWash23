@@ -6,6 +6,7 @@ import 'package:smart_wash/user/app_bar.dart';
 import 'package:smart_wash/user/bookings/booking_list.dart';
 // import 'package:smart_wash/booking_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:smart_wash/user/screens/day_button.dart';
 import 'package:smart_wash/user/screens/profile.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_wash/utils/location_utils.dart';
@@ -41,6 +42,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
   Map<String, bool> disabledTimeSlots = {};
   DateTime today = DateTime.now();
   DateTime lastSelectableDate = DateTime.now().add(const Duration(days: 7));
+  Map<String, bool> disabledDays = {};
 
   LatLng? _partnerLocation;
 
@@ -60,6 +62,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
         );
       }
     });
+    disabledDays = {};
   }
 
   Future<void> _fetchPartnerLocation() async {
@@ -113,6 +116,28 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
               Map<String, bool>.from(data['disabled_time_slots']);
         });
       }
+    }
+  }
+
+  Future<void> fetchDisabledDays(String centerUid) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('partners')
+          .doc(centerUid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        final disabledMap = data['disabled_days'] as Map<String, dynamic>;
+
+        // Store this in state (inside setState)
+        setState(() {
+          disabledDays = disabledMap
+              .map((key, value) => MapEntry(key.toLowerCase(), value as bool));
+        });
+      }
+    } catch (e) {
+      print('Error fetching disabled days: $e');
     }
   }
 
@@ -231,9 +256,16 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: week.map((day) {
-                          return _DayButton(
+                          final String weekday = DateFormat('EEEE')
+                              .format(day ?? DateTime.now())
+                              .toLowerCase();
+                          final bool isDisabledByAdmin =
+                              disabledDays[weekday] == true;
+
+                          return DayButton(
                             day: day,
                             isSelected: selectedDate.day == day?.day,
+                            isDisabledByAdmin: isDisabledByAdmin,
                             onTap: () {
                               if (day != null) {
                                 setState(() {
@@ -489,7 +521,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                       child: Text(
                         data['isExact']
                             ? "Your total price"
-                            : "Approximate price",
+                            : " Approximate price\n Please enable the location for better price",
                         style: TextStyle(
                           color: data['isExact'] ? Colors.green : Colors.orange,
                           fontSize: 12,
@@ -700,109 +732,109 @@ class _DayHeader extends StatelessWidget {
   }
 }
 
-class _DayButton extends StatelessWidget {
-  final DateTime? day;
-  final bool isSelected;
-  final VoidCallback onTap;
+// class _DayButton extends StatelessWidget {
+//   final DateTime? day;
+//   final bool isSelected;
+//   final VoidCallback onTap;
 
-  const _DayButton({
-    required this.day,
-    required this.isSelected,
-    required this.onTap,
-  });
+//   const _DayButton({
+//     required this.day,
+//     required this.isSelected,
+//     required this.onTap,
+//   });
 
-  @override
-  Widget build(BuildContext context) {
-    final today = DateTime.now();
-    final lastValidDate = today.add(const Duration(days: 7));
-    final isToday = day != null &&
-        day!.year == today.year &&
-        day!.month == today.month &&
-        day!.day == today.day;
+//   @override
+//   Widget build(BuildContext context) {
+//     final today = DateTime.now();
+//     final lastValidDate = today.add(const Duration(days: 7));
+//     final isToday = day != null &&
+//         day!.year == today.year &&
+//         day!.month == today.month &&
+//         day!.day == today.day;
 
-    final isDisabled = day == null ||
-        day!.isBefore(DateTime(today.year, today.month, today.day)) ||
-        day!.isAfter(lastValidDate);
+//     final isDisabled = day == null ||
+//         day!.isBefore(DateTime(today.year, today.month, today.day)) ||
+//         day!.isAfter(lastValidDate);
 
-    // Colors
-    final Color bgColor;
-    final Color textColor;
-    final Color borderColor;
+//     // Colors
+//     final Color bgColor;
+//     final Color textColor;
+//     final Color borderColor;
 
-    if (isDisabled) {
-      bgColor = Colors.grey.shade100;
-      textColor = Colors.grey.shade400;
-      borderColor = Colors.grey.shade300;
-    } else if (isSelected) {
-      bgColor = Theme.of(context).primaryColor;
-      textColor = Colors.white;
-      borderColor = Theme.of(context).primaryColor;
-    } else if (isToday) {
-      bgColor = Colors.blue.shade50;
-      textColor = Theme.of(context).primaryColor;
-      borderColor = Colors.blue.shade100;
-    } else {
-      bgColor = Colors.white;
-      textColor = Colors.black87;
-      borderColor = Colors.grey.shade200;
-    }
+//     if (isDisabled) {
+//       bgColor = Colors.grey.shade100;
+//       textColor = Colors.grey.shade400;
+//       borderColor = Colors.grey.shade300;
+//     } else if (isSelected) {
+//       bgColor = Theme.of(context).primaryColor;
+//       textColor = Colors.white;
+//       borderColor = Theme.of(context).primaryColor;
+//     } else if (isToday) {
+//       bgColor = Colors.blue.shade50;
+//       textColor = Theme.of(context).primaryColor;
+//       borderColor = Colors.blue.shade100;
+//     } else {
+//       bgColor = Colors.white;
+//       textColor = Colors.black87;
+//       borderColor = Colors.grey.shade200;
+//     }
 
-    return GestureDetector(
-      onTap: isDisabled ? null : onTap,
-      child: Container(
-        width: 40, // Fixed width
-        height: 56, // Fixed height
-        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: borderColor,
-            width: 1,
-          ),
-          boxShadow: [
-            if (!isDisabled && (isSelected || isToday))
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 2,
-                offset: Offset(0, 1),
-              ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              day != null ? DateFormat('E').format(day!).substring(0, 1) : '',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              day != null ? '${day!.day}' : '',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-            if (isToday && !isSelected && !isDisabled)
-              Container(
-                margin: const EdgeInsets.only(top: 2),
-                height: 3,
-                width: 3,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+//     return GestureDetector(
+//       onTap: isDisabled ? null : onTap,
+//       child: Container(
+//         width: 40, // Fixed width
+//         height: 56, // Fixed height
+//         margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+//         decoration: BoxDecoration(
+//           color: bgColor,
+//           borderRadius: BorderRadius.circular(8),
+//           border: Border.all(
+//             color: borderColor,
+//             width: 1,
+//           ),
+//           boxShadow: [
+//             if (!isDisabled && (isSelected || isToday))
+//               BoxShadow(
+//                 color: Colors.black12,
+//                 blurRadius: 2,
+//                 offset: Offset(0, 1),
+//               ),
+//           ],
+//         ),
+//         child: Column(
+//           mainAxisAlignment: MainAxisAlignment.center,
+//           mainAxisSize: MainAxisSize.min,
+//           children: [
+//             Text(
+//               day != null ? DateFormat('E').format(day!).substring(0, 1) : '',
+//               style: TextStyle(
+//                 color: textColor,
+//                 fontSize: 10,
+//                 fontWeight: FontWeight.w500,
+//               ),
+//             ),
+//             const SizedBox(height: 2),
+//             Text(
+//               day != null ? '${day!.day}' : '',
+//               style: TextStyle(
+//                 color: textColor,
+//                 fontSize: 14,
+//                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+//               ),
+//             ),
+//             if (isToday && !isSelected && !isDisabled)
+//               Container(
+//                 margin: const EdgeInsets.only(top: 2),
+//                 height: 3,
+//                 width: 3,
+//                 decoration: BoxDecoration(
+//                   color: Theme.of(context).primaryColor,
+//                   shape: BoxShape.circle,
+//                 ),
+//               ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }

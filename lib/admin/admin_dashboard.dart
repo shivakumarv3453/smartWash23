@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:smart_wash/admin/app_bar2.dart';
+import 'package:smart_wash/admin/manage_days.dart';
 import 'package:smart_wash/admin/manage_time_slot.dart';
 // import 'package:smart_wash/manage_wash_types.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -326,6 +327,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         context: context,
                         builder: (context) =>
                             ManageTimeSlotsPopup(adminUid: widget.adminUid),
+                      ),
+                    ),
+                    DashboardItem(
+                      title: "Manage Days",
+                      icon: Icons.calendar_month,
+                      onTap: () => showDialog(
+                        context: context,
+                        builder: (context) =>
+                            ManageDaysPopup(adminUid: widget.adminUid),
                       ),
                     ),
                     DashboardItem(

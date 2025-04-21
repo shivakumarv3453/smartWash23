@@ -1,8 +1,9 @@
+import 'dart:html' as html;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-
-import '../app_bar.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class PaymentPage extends StatefulWidget {
   final String bookingId;
@@ -22,9 +23,13 @@ class _PaymentPageState extends State<PaymentPage> {
     super.initState();
     _razorpay = Razorpay();
 
-    // Automatically trigger payment on page load
+    // Automatically trigger payment on page load for web
     Future.delayed(Duration.zero, () {
-      _openCheckout();
+      if (kIsWeb) {
+        _openWebCheckout(); // Web checkout
+      } else {
+        _openMobileCheckout(); // Mobile checkout
+      }
     });
 
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
@@ -38,12 +43,23 @@ class _PaymentPageState extends State<PaymentPage> {
     super.dispose();
   }
 
-  void _openCheckout() {
-    var options = {
-      'key': 'rzp_test_6JdX7oPFCEpYn7', // Replace with your Razorpay Test Key
+  // // Web checkout implementation
+  void _openWebCheckout() async {
+    final order = await _createOrderOnServer();
+
+    if (order == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to create order')),
+      );
+      return;
+    }
+
+    final options = {
+      'key': 'rzp_test_6JdX7oPFCEpYn7',
       'amount': widget.amount,
       'name': 'Smart Wash',
       'description': 'Booking for Wash',
+      'order_id': order['id'], // 👈 Very important for web
       'prefill': {
         'contact': '9611227942',
         'email': 'shivakumarv3453@email.com',
@@ -52,15 +68,38 @@ class _PaymentPageState extends State<PaymentPage> {
       'theme': {'color': '#3399cc'}
     };
 
-    if (kIsWeb) {
-      // Web checkout (optional)
-      // _openWebCheckout();
-    } else {
-      _openMobileCheckout(options);
-    }
+    // Open Razorpay checkout in web view
+    html.window.open('https://checkout.razorpay.com/v1/checkout.js',
+        'Razorpay Payment', 'width=500, height=600');
+
+    html.window.postMessage(options, '*');
   }
 
-  void _openMobileCheckout(Map<String, dynamic> options) {
+  // Mobile checkout implementation
+  void _openMobileCheckout() async {
+    final order = await _createOrderOnServer();
+
+    if (order == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to create order')),
+      );
+      return;
+    }
+
+    var options = {
+      'key': 'rzp_test_6JdX7oPFCEpYn7',
+      'amount': widget.amount,
+      'name': 'Smart Wash',
+      'description': 'Booking for Wash',
+      'order_id': order['id'], // 👈 Required for Razorpay server integration
+      'prefill': {
+        'contact': '9611227942',
+        'email': 'shivakumarv3453@email.com',
+      },
+      'currency': 'INR',
+      'theme': {'color': '#3399cc'}
+    };
+
     try {
       _razorpay.open(options);
     } catch (e) {
@@ -88,10 +127,37 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
+  Future<Map<String, dynamic>?> _createOrderOnServer() async {
+    try {
+      final url = Uri.parse(
+          'http://127.0.0.1:3000/create-order'); // Use actual backend URL if deployed
+
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'amount': widget.amount,
+          'currency': 'INR',
+          'receipt': widget.bookingId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        print('Failed to create order: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Exception in _createOrderOnServer: $e');
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: custAppBar(context, "Payment"),
+      appBar: AppBar(title: Text('Payment')),
       body: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

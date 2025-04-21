@@ -72,11 +72,38 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
             }
 
             var bookings = snapshot.data!.docs;
+
+            bookings.sort((a, b) {
+              String statusA =
+                  (a.data() as Map<String, dynamic>)['status'] ?? '';
+              String statusB =
+                  (b.data() as Map<String, dynamic>)['status'] ?? '';
+
+              // Prioritize Payment Method Confirmed
+              if (statusA == "Payment Method Confirmed (COD)" &&
+                  statusB != "Payment Method Confirmed (COD)") {
+                return -1;
+              } else if (statusB == "Payment Method Confirmed (COD)" &&
+                  statusA != "Payment Method Confirmed (COD)") {
+                return 1;
+              } else {
+                // Sort by timestamp (latest first)
+                Timestamp tsA =
+                    (a.data() as Map<String, dynamic>)['timestamp'] ??
+                        Timestamp(0, 0);
+                Timestamp tsB =
+                    (b.data() as Map<String, dynamic>)['timestamp'] ??
+                        Timestamp(0, 0);
+                return tsB.compareTo(tsA);
+              }
+            });
+
             return ListView.separated(
               itemCount: bookings.length,
               separatorBuilder: (context, index) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 var doc = bookings[index];
+
                 final data = doc.data() as Map<String, dynamic>;
                 final isNew = data['notificationSent'] == true;
                 final timestamp = data['timestamp'] as Timestamp?;
@@ -86,18 +113,32 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                     : data['date'] ?? "N/A";
 
                 // Determine status color
-                Color statusColor = Colors.grey;
+                Color statusColor = Colors.grey; // Default
                 if (data['status'].toString().startsWith("Confirmed")) {
-                  statusColor = Colors.green;
+                  statusColor = Colors.blue;
                 } else if (data['status'] == "Rejected") {
                   statusColor = Colors.red;
                 } else if (data['status'] == "Pending") {
                   statusColor = Colors.orange;
+                } else if (data['status'] == "Service Done") {
+                  statusColor = Colors.grey[800]!; // Dark gray
+                } else if (data['status'] == "Payment Method Confirmed (COD)") {
+                  statusColor = Colors.green; // Blue for COD
                 }
 
                 return GestureDetector(
                   onTap: () {
-                    _showStatusOptions(context, doc.id);
+                    final status = doc['status'];
+                    if (status == "Service Done" || status == "Cancelled") {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Status '$status' cannot be modified."),
+                          backgroundColor: Colors.grey[700],
+                        ),
+                      );
+                      return;
+                    }
+                    _showStatusOptions(context, doc.id, status, "");
                   },
                   child: Card(
                     elevation: 2,
@@ -146,6 +187,7 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                               const SizedBox(height: 12),
                               const Divider(height: 1),
                               const SizedBox(height: 12),
+
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -181,16 +223,33 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                IconButton(
-                                  icon: const Icon(Icons.more_vert),
-                                  iconSize: 20,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  color: Colors.deepOrange,
-                                  onPressed: () {
-                                    _showStatusOptions(context, doc.id);
-                                  },
-                                ),
+                                if ((data["status"] ?? "") !=
+                                    "Payment Method Confirmed (COD)")
+                                  IconButton(
+                                    icon: const Icon(Icons.more_vert),
+                                    iconSize: 20,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    color: Colors.deepOrange,
+                                    onPressed: () {
+                                      final status = doc['status'];
+                                      String centerUid;
+                                      if (status == "Service Done" ||
+                                          status == "Cancelled") {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                                "Status '$status' cannot be modified."),
+                                            backgroundColor: Colors.grey[700],
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      _showStatusOptions(
+                                          context, doc.id, status, "");
+                                    },
+                                  )
                               ],
                             ),
                           ),
@@ -248,59 +307,187 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
     );
   }
 
-  void _showStatusOptions(BuildContext context, String bookingId) {
+  void _showUserRatingDialog(BuildContext context, String centerUid) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          "Update Status",
-          style: TextStyle(color: Colors.deepOrange),
-        ),
-        content: const Text("Select the new status for this booking"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
+      builder: (context) => FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('bookingRatings')
+            .doc(centerUid)
+            .get(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return AlertDialog(
+              title: const Text("Error"),
+              content: const Text("Error fetching rating data."),
+            );
+          }
+
+          if (!snapshot.hasData || snapshot.data!.data() == null) {
+            return AlertDialog(
+              title: const Text("No Rating Found"),
+              content:
+                  const Text("No user feedback available for this center."),
+            );
+          }
+
+          var data = snapshot.data!.data() as Map<String, dynamic>;
+          var rating = data['rating'] ?? 0.0;
+          var userFeedback = data['comment'] ?? "No comment provided.";
+
+          return AlertDialog(
+            title: const Text(
+              "User Rating",
+              style: TextStyle(color: Colors.deepOrange),
             ),
-            onPressed: () async {
-              await _updateStatus(
-                  context, bookingId, "Confirmed - Awaiting Payment");
-              Navigator.pop(context);
-            },
-            child: const Text(
-              "Confirm",
-              style: TextStyle(color: Colors.white),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text("Rating: $rating / 5"),
+                const SizedBox(height: 16),
+                Text("Feedback:"),
+                Text(userFeedback),
+              ],
             ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            onPressed: () async {
-              await _updateStatus(context, bookingId, "Rejected");
-              Navigator.pop(context);
-            },
-            child: const Text("Reject", style: TextStyle(color: Colors.white)),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Close"),
+              ),
+            ],
+          );
+        },
       ),
     );
+  }
+
+  void _showStatusOptions(
+    BuildContext context,
+    String bookingId,
+    String status,
+    String centerUid,
+  ) {
+    // Prevent modifying bookings with Service Done or Cancelled status
+    if (status.trim().toLowerCase() == "service done" ||
+        status.trim().toLowerCase() == "cancelled") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Status '$status' cannot be modified."),
+          backgroundColor: Colors.grey[700],
+        ),
+      );
+      return; // Don't show status options dialog if status is Service Done or Cancelled
+    }
+
+    // COD status options (Payment Method Confirmed (COD))
+    if (status.trim().toLowerCase() ==
+        "payment method confirmed (cod)".toLowerCase()) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text(
+            "Update Status",
+            style: TextStyle(color: Colors.deepOrange),
+          ),
+          content: const Text("Select the new status for this booking"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[800],
+              ),
+              onPressed: () async {
+                await _updateStatus(context, bookingId, "Service Done");
+                Navigator.pop(context);
+                // Show user ratings after updating status to "Service Done"
+                _showUserRatingDialog(context, centerUid); // Add this line
+              },
+              child: const Text("Service Done",
+                  style: TextStyle(color: Colors.white)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                await _updateStatus(context, bookingId, "Cancelled");
+                Navigator.pop(context);
+              },
+              child:
+                  const Text("Cancel", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Other statuses options
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text(
+            "Update Status",
+            style: TextStyle(color: Colors.deepOrange),
+          ),
+          content: const Text("Select the new status for this booking"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              onPressed: () async {
+                await _updateStatus(
+                  context,
+                  bookingId,
+                  "Confirmed - Awaiting Payment",
+                );
+                Navigator.pop(context);
+              },
+              child:
+                  const Text("Confirm", style: TextStyle(color: Colors.white)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                await _updateStatus(context, bookingId, "Rejected");
+                Navigator.pop(context);
+              },
+              child:
+                  const Text("Reject", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Future<void> _updateStatus(
       BuildContext context, String bookingId, String status) async {
     try {
-      // First update the status
+      // Update the status
       await FirebaseFirestore.instance
           .collection('bookings')
           .doc(bookingId)
           .update({'status': status});
 
-      // Then update the notificationSent field separately
+      // Optional: Update the status color to reflect changes (if necessary)
+      Color statusColor;
+      if (status == "Service Done") {
+        statusColor = Colors.grey[800]!; // Dark gray color
+      } else if (status == "Confirmed - Awaiting Payment") {
+        statusColor = Colors.green;
+      } else if (status == "Cancelled") {
+        statusColor = Colors.red;
+      } else {
+        statusColor = Colors.orange;
+      }
+
+      // Update the notificationSent field if necessary
       await FirebaseFirestore.instance
           .collection('bookings')
           .doc(bookingId)
@@ -309,7 +496,7 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Status updated to $status"),
-          backgroundColor: status == "Confirmed" ? Colors.green : Colors.red,
+          backgroundColor: statusColor,
         ),
       );
     } catch (e) {

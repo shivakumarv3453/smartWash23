@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smart_wash/user/app_bar.dart';
 // import 'package:smart_wash/user/screens/payment.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class BookingDetailsScreen extends StatelessWidget {
   final String bookingId;
@@ -157,9 +158,65 @@ class BookingDetailsScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _confirmCODPayment(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Authentication required')),
+      );
+      return;
+    }
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Updating payment method...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(bookingId)
+          .update({
+        'status': 'Payment Method Confirmed (COD)',
+        'paymentMethod': 'COD',
+        'lastUpdatedBy': currentUser.uid,
+      });
+
+      navigator.pop(); // close loading
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Payment method confirmed as COD')),
+      );
+    } catch (e, stackTrace) {
+      navigator.pop(); // close loading
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Failed to confirm payment method'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      debugPrint('Error: $e\n$stackTrace');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final rawStatus = bookingData['status'] ?? 'Pending';
+    // final hasFeedback = bookingData['feedback'] != null;
+    final centerUid =
+        bookingData['centerUid']; // if bookingData is a Map from Firestore
 
     // Customize status label for user
     final status = rawStatus == 'Confirmed - Awaiting Payment'
@@ -267,6 +324,325 @@ class BookingDetailsScreen extends StatelessWidget {
                 ),
               ),
             ),
+          if (status == 'Service Done')
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.purple.shade100),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Use StreamBuilder to listen for changes to the feedback
+                    StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('bookingRatings')
+                          .doc(bookingId)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError) {
+                          return const Text('Error loading feedback');
+                        }
+
+                        final hasFeedback =
+                            snapshot.hasData && snapshot.data!.exists;
+                        final feedbackData = hasFeedback
+                            ? snapshot.data!.data() as Map<String, dynamic>
+                            : null;
+                        final existingRating = feedbackData?['rating'] ?? 0.0;
+                        final existingComment = feedbackData?['comment'] ?? '';
+
+                        if (!hasFeedback) {
+                          // Show rating UI only if no feedback exists
+                          return Column(
+                            children: [
+                              const Center(
+                                child: Text(
+                                  "Rate Our Service",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.purple,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              RatingBar.builder(
+                                initialRating: 0,
+                                minRating: 1,
+                                allowHalfRating: true,
+                                itemCount: 5,
+                                itemBuilder: (context, _) =>
+                                    const Icon(Icons.star, color: Colors.amber),
+                                onRatingUpdate: (rating) {
+                                  // Handle rating update
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              const Text("Leave your feedback here."),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () {
+                                  // Show dialog to submit feedback
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) {
+                                      final TextEditingController
+                                          feedbackController =
+                                          TextEditingController();
+                                      double newRating = 0;
+
+                                      return AlertDialog(
+                                        title: const Text("Leave Feedback"),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            RatingBar.builder(
+                                              initialRating: 0,
+                                              minRating: 1,
+                                              allowHalfRating: true,
+                                              itemCount: 5,
+                                              itemBuilder: (context, _) =>
+                                                  const Icon(Icons.star,
+                                                      color: Colors.amber),
+                                              onRatingUpdate: (rating) {
+                                                newRating = rating;
+                                              },
+                                            ),
+                                            const SizedBox(height: 8),
+                                            TextField(
+                                              controller: feedbackController,
+                                              decoration: const InputDecoration(
+                                                hintText:
+                                                    "Type your feedback here...",
+                                              ),
+                                              maxLines: 4,
+                                            ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text("Cancel"),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () async {
+                                              // Ensure user is logged in
+                                              final user = FirebaseAuth
+                                                  .instance.currentUser;
+                                              if (user == null) {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                      content: Text(
+                                                          "Please log in to submit feedback.")),
+                                                );
+                                                return;
+                                              }
+                                              try {
+                                                final feedbackText =
+                                                    feedbackController.text;
+                                                // Add new feedback in Firestore
+                                                await FirebaseFirestore.instance
+                                                    .collection(
+                                                        'bookingRatings')
+                                                    .doc(bookingId)
+                                                    .set({
+                                                  'rating': newRating,
+                                                  'comment': feedbackText,
+                                                  'submittedAt': FieldValue
+                                                      .serverTimestamp(),
+                                                  'userId': user.uid,
+                                                  'centerUid': centerUid,
+                                                });
+
+                                                // Update booking document to mark feedback as submitted
+                                                await FirebaseFirestore.instance
+                                                    .collection('bookings')
+                                                    .doc(bookingId)
+                                                    .update(
+                                                        {'hasFeedback': true});
+
+                                                Navigator.pop(
+                                                    context); // Close dialog
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                      content: Text(
+                                                          "Thanks for your feedback!")),
+                                                );
+                                              } catch (e) {
+                                                // Handle errors
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                      content: Text(
+                                                          "Failed to submit feedback: $e")),
+                                                );
+                                              }
+                                            },
+                                            child: const Text("Submit"),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                                child: const Text("Submit Feedback"),
+                              ),
+                            ],
+                          );
+                        } else {
+                          // Show update UI only if feedback exists
+                          return Column(
+                            children: [
+                              const Text(
+                                "Your Rating",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              RatingBar.builder(
+                                initialRating: existingRating,
+                                minRating: 1,
+                                allowHalfRating: true,
+                                itemCount: 5,
+                                itemBuilder: (context, _) => const Icon(
+                                  Icons.star,
+                                  color: Colors.amber,
+                                ),
+                                ignoreGestures:
+                                    true, // Make rating bar non-interactive
+                                onRatingUpdate:
+                                    (rating) {}, // Empty callback since we're just displaying
+                              ),
+                              const SizedBox(height: 8),
+                              Text("Your Feedback: $existingComment"),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () {
+                                  // Show dialog to update feedback
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) {
+                                      final TextEditingController
+                                          feedbackController =
+                                          TextEditingController(
+                                              text: existingComment);
+                                      double updatedRating = existingRating;
+
+                                      return AlertDialog(
+                                        title: const Text("Update Feedback"),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            RatingBar.builder(
+                                              initialRating: existingRating,
+                                              minRating: 1,
+                                              allowHalfRating: true,
+                                              itemCount: 5,
+                                              itemBuilder: (context, _) =>
+                                                  const Icon(
+                                                Icons.star,
+                                                color: Colors.amber,
+                                              ),
+                                              onRatingUpdate: (rating) {
+                                                updatedRating = rating;
+                                              },
+                                            ),
+                                            const SizedBox(height: 8),
+                                            TextField(
+                                              controller: feedbackController,
+                                              decoration: const InputDecoration(
+                                                hintText:
+                                                    "Type your feedback here...",
+                                              ),
+                                              maxLines: 4,
+                                            ),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text("Cancel"),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () async {
+                                              // Ensure user is logged in
+                                              final user = FirebaseAuth
+                                                  .instance.currentUser;
+                                              if (user == null) {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                      content: Text(
+                                                          "Please log in to submit feedback.")),
+                                                );
+                                                return;
+                                              }
+                                              try {
+                                                final feedbackText =
+                                                    feedbackController.text;
+                                                // Update feedback in Firestore
+                                                await FirebaseFirestore.instance
+                                                    .collection(
+                                                        'bookingRatings')
+                                                    .doc(bookingId)
+                                                    .update({
+                                                  'rating': updatedRating,
+                                                  'comment': feedbackText,
+                                                  'submittedAt': FieldValue
+                                                      .serverTimestamp(),
+                                                });
+
+                                                Navigator.pop(
+                                                    context); // Close dialog
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                      content: Text(
+                                                          "Thanks for updating your feedback!")),
+                                                );
+                                              } catch (e) {
+                                                // Handle errors
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                      content: Text(
+                                                          "Failed to update feedback: $e")),
+                                                );
+                                              }
+                                            },
+                                            child: const Text("Submit"),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                                child: const Text("Update Feedback"),
+                              ),
+                            ],
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
           // Proceed with payment button (if booking is in Confirmed state)
           if (status.toString().startsWith('Confirmed'))
             Padding(
@@ -289,13 +665,38 @@ class BookingDetailsScreen extends StatelessWidget {
                     ),
                   ),
                   onPressed: () {
-                    // Navigate to the payment page
-                    Navigator.pushNamed(
-                      context,
-                      '/payment',
-                      arguments: {
-                        'bookingId': bookingId,
-                        'amount': 1,
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text("Select Payment Method"),
+                          content: const Text(
+                              "Choose how you'd like to pay for the service."),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop(); // close dialog
+                                _confirmCODPayment(context); // call function
+                              },
+                              child: const Text("Pay After Service (COD)"),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(context).pop(); // close dialog
+                                // Razorpay integration to be done later
+                                Navigator.pushNamed(
+                                  context,
+                                  '/payment',
+                                  arguments: {
+                                    'bookingId': bookingId,
+                                    'amount': 1,
+                                  },
+                                );
+                              },
+                              child: const Text("Proceed with Online Payment"),
+                            ),
+                          ],
+                        );
                       },
                     );
                   },
@@ -313,6 +714,8 @@ class BookingDetailsScreen extends StatelessWidget {
         return Colors.green;
       case 'cancelled':
         return Colors.grey;
+      case 'Service Done':
+        return Colors.grey[800]!;
       case 'pending':
         return Colors.orange;
       default:

@@ -243,18 +243,6 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     }
 
-    // ✅ Defensive check before Firestore update
-    if (lat == null) {
-      print("Some value is still null: $finalLocation | $lat | $long");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Error: Location or coordinates are missing"),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
     // ✅ Firestore update
     try {
       await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
