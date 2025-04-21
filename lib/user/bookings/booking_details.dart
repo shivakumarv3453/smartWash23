@@ -464,6 +464,7 @@ class BookingDetailsScreen extends StatelessWidget {
                                                       .serverTimestamp(),
                                                   'userId': user.uid,
                                                   'centerUid': centerUid,
+                                                  'bookingId': bookingId,
                                                 });
 
                                                 // Update booking document to mark feedback as submitted

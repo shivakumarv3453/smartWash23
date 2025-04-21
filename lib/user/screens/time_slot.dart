@@ -223,7 +223,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: custAppBar(context, "Choose Date & Time Slot"),
+      appBar: custAppBar(context, "Choose Available Date"),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

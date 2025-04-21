@@ -27,7 +27,7 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
           stream: FirebaseFirestore.instance
               .collection("bookings")
               .where("centerUid", isEqualTo: widget.adminUid)
-              .orderBy("timestamp", descending: true)
+              // .orderBy("timestamp", descending: true)
               .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -70,15 +70,12 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                 ),
               );
             }
-
             var bookings = snapshot.data!.docs;
-
             bookings.sort((a, b) {
               String statusA =
                   (a.data() as Map<String, dynamic>)['status'] ?? '';
               String statusB =
                   (b.data() as Map<String, dynamic>)['status'] ?? '';
-
               // Prioritize Payment Method Confirmed
               if (statusA == "Payment Method Confirmed (COD)" &&
                   statusB != "Payment Method Confirmed (COD)") {
@@ -97,13 +94,11 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                 return tsB.compareTo(tsA);
               }
             });
-
             return ListView.separated(
               itemCount: bookings.length,
               separatorBuilder: (context, index) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 var doc = bookings[index];
-
                 final data = doc.data() as Map<String, dynamic>;
                 final isNew = data['notificationSent'] == true;
                 final timestamp = data['timestamp'] as Timestamp?;
@@ -111,7 +106,6 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                 final formattedDate = dateTime != null
                     ? "${dateTime.day}/${dateTime.month}/${dateTime.year}"
                     : data['date'] ?? "N/A";
-
                 // Determine status color
                 Color statusColor = Colors.grey; // Default
                 if (data['status'].toString().startsWith("Confirmed")) {
@@ -125,11 +119,16 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                 } else if (data['status'] == "Payment Method Confirmed (COD)") {
                   statusColor = Colors.green; // Blue for COD
                 }
-
                 return GestureDetector(
                   onTap: () {
                     final status = doc['status'];
                     if (status == "Service Done" || status == "Cancelled") {
+                      // For Service Done, show ratings dialog instead of status options
+                      if (status == "Service Done") {
+                        _showUserRatingDialog(context, doc.id);
+                        return;
+                      }
+
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text("Status '$status' cannot be modified."),
@@ -187,7 +186,6 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                               const SizedBox(height: 12),
                               const Divider(height: 1),
                               const SizedBox(height: 12),
-
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -198,8 +196,135 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                                       Icons.access_time, "${data["time"]}"),
                                 ],
                               ),
+
+                              // Add rating display for Service Done bookings
+                              if (data['status'] == "Service Done")
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 12.0),
+                                  child: StreamBuilder<QuerySnapshot>(
+                                    stream: FirebaseFirestore.instance
+                                        .collection('bookingRatings')
+                                        .where('bookingId', isEqualTo: doc.id)
+                                        .orderBy('timestamp', descending: true)
+                                        .snapshots(),
+                                    builder: (context, ratingSnapshot) {
+                                      if (ratingSnapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const Center(
+                                          child: SizedBox(
+                                            height: 20,
+                                            width: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
+                                        );
+                                      }
+
+                                      if (ratingSnapshot.hasData) {
+                                        // Filter ratings by either bookingId field OR document ID
+                                        final bookingId = doc.id;
+                                        var allRatings =
+                                            ratingSnapshot.data!.docs;
+
+                                        var bookingRatings =
+                                            allRatings.where((ratingDoc) {
+                                          var ratingData = ratingDoc.data()
+                                              as Map<String, dynamic>;
+                                          return ratingData['bookingId'] ==
+                                                  bookingId ||
+                                              ratingDoc.id == bookingId;
+                                        }).toList();
+
+                                        if (bookingRatings.isNotEmpty) {
+                                          var ratingData = bookingRatings.first
+                                              .data() as Map<String, dynamic>;
+                                          var rating =
+                                              ratingData['rating'] ?? 0;
+                                          var comment = ratingData['comment'] ??
+                                              "No comment";
+
+                                          return Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Text(
+                                                    "User Rating: ",
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                  for (int i = 0; i < 5; i++)
+                                                    Icon(
+                                                      i < rating
+                                                          ? Icons.star
+                                                          : Icons.star_border,
+                                                      color: Colors.amber,
+                                                      size: 16,
+                                                    ),
+                                                  Text(
+                                                    " ($rating/5)",
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      "\"$comment\"",
+                                                      style: TextStyle(
+                                                        fontStyle:
+                                                            FontStyle.italic,
+                                                        fontSize: 13,
+                                                        color: Colors.grey[700],
+                                                      ),
+                                                      maxLines: 2,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        _showUserRatingDialog(
+                                                            context, doc.id),
+                                                    child: const Text(
+                                                      "View Details",
+                                                      style: TextStyle(
+                                                        color:
+                                                            Colors.deepOrange,
+                                                        fontSize: 13,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          );
+                                        }
+                                      }
+                                      return const Text(
+                                        "No rating available",
+                                        style: TextStyle(
+                                          fontStyle: FontStyle.italic,
+                                          fontSize: 13,
+                                          color: Colors.grey,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
                             ],
                           ),
+
                           // Status and menu button in top-right
                           Positioned(
                             right: 4,
@@ -224,7 +349,9 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                                 ),
                                 const SizedBox(width: 8),
                                 if ((data["status"] ?? "") !=
-                                    "Payment Method Confirmed (COD)")
+                                        "Payment Method Confirmed (COD)" &&
+                                    (data["status"] ?? "") != "Service Done" &&
+                                    (data["status"] ?? "") != "Cancelled")
                                   IconButton(
                                     icon: const Icon(Icons.more_vert),
                                     iconSize: 20,
@@ -233,7 +360,6 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                                     color: Colors.deepOrange,
                                     onPressed: () {
                                       final status = doc['status'];
-                                      String centerUid;
                                       if (status == "Service Done" ||
                                           status == "Cancelled") {
                                         ScaffoldMessenger.of(context)
@@ -253,7 +379,7 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                               ],
                             ),
                           ),
-                          // Notification dot
+                          // Notification dot if (isNew)
                           if (isNew)
                             const Positioned(
                               right: 40,
@@ -307,50 +433,136 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
     );
   }
 
-  void _showUserRatingDialog(BuildContext context, String centerUid) {
+  void _showUserRatingDialog(BuildContext context, String bookingId) {
     showDialog(
       context: context,
-      builder: (context) => FutureBuilder<DocumentSnapshot>(
+      builder: (context) => FutureBuilder<QuerySnapshot>(
         future: FirebaseFirestore.instance
             .collection('bookingRatings')
-            .doc(centerUid)
-            .get(),
+            .get(), // Get ALL ratings
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const AlertDialog(
+              content: Center(child: CircularProgressIndicator()),
+            );
           }
+
           if (snapshot.hasError) {
             return AlertDialog(
               title: const Text("Error"),
-              content: const Text("Error fetching rating data."),
+              content: Text("Error fetching rating data: ${snapshot.error}"),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Close"),
+                ),
+              ],
             );
           }
 
-          if (!snapshot.hasData || snapshot.data!.data() == null) {
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return AlertDialog(
-              title: const Text("No Rating Found"),
-              content:
-                  const Text("No user feedback available for this center."),
+              title: const Text("No Ratings Found"),
+              content: const Text("No ratings available in the database."),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Close"),
+                ),
+              ],
             );
           }
 
-          var data = snapshot.data!.data() as Map<String, dynamic>;
-          var rating = data['rating'] ?? 0.0;
-          var userFeedback = data['comment'] ?? "No comment provided.";
+          // Filter ratings by either bookingId field OR document ID
+          var allRatings = snapshot.data!.docs;
 
+          var bookingRatings = allRatings.where((doc) {
+            var data = doc.data() as Map<String, dynamic>;
+            // Match either bookingId field OR document ID
+            return data['bookingId'] == bookingId || doc.id == bookingId;
+          }).toList();
+
+          if (bookingRatings.isEmpty) {
+            return AlertDialog(
+              title: const Text("No Ratings Found"),
+              content: Text("No user feedback available for this booking."),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Close"),
+                ),
+              ],
+            );
+          }
+
+          // Now display the found ratings
           return AlertDialog(
             title: const Text(
-              "User Rating",
+              "User Ratings",
               style: TextStyle(color: Colors.deepOrange),
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text("Rating: $rating / 5"),
-                const SizedBox(height: 16),
-                Text("Feedback:"),
-                Text(userFeedback),
-              ],
+            content: Container(
+              width: double.maxFinite,
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.6,
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: bookingRatings.length,
+                separatorBuilder: (context, index) => const Divider(),
+                itemBuilder: (context, index) {
+                  var data =
+                      bookingRatings[index].data() as Map<String, dynamic>;
+                  var rating = data['rating'] ?? 0;
+                  var userFeedback = data['comment'] ?? "No comment provided.";
+                  var timestamp = data['timestamp'] as Timestamp?;
+                  var dateTime = timestamp?.toDate();
+                  var formattedDate = dateTime != null
+                      ? "${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}"
+                      : "Date not available";
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (int i = 0; i < 5; i++)
+                              Icon(
+                                i < rating ? Icons.star : Icons.star_border,
+                                color: Colors.amber,
+                                size: 18,
+                              ),
+                            Text(
+                              " ($rating/5)",
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "\"$userFeedback\"",
+                        style: const TextStyle(
+                          fontStyle: FontStyle.italic,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formattedDate,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
             actions: [
               TextButton(
@@ -364,11 +576,28 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
     );
   }
 
+// Add this function to help debug your ratings issue
+  // Debugging function to check the exact structure of your bookingRatings collection
+  void _debugBookingRatings() {
+    FirebaseFirestore.instance
+        .collection('bookingRatings')
+        .get()
+        .then((snapshot) {
+      print("Total ratings found: ${snapshot.docs.length}");
+
+      if (snapshot.docs.isNotEmpty) {
+        print("First rating document data:");
+        print(snapshot.docs.first.data());
+        print("First rating document ID: ${snapshot.docs.first.id}");
+      }
+    });
+  }
+
   void _showStatusOptions(
     BuildContext context,
     String bookingId,
     String status,
-    String centerUid,
+    String centerUid, // This parameter isn't used currently
   ) {
     // Prevent modifying bookings with Service Done or Cancelled status
     if (status.trim().toLowerCase() == "service done" ||
@@ -405,8 +634,8 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
               onPressed: () async {
                 await _updateStatus(context, bookingId, "Service Done");
                 Navigator.pop(context);
-                // Show user ratings after updating status to "Service Done"
-                _showUserRatingDialog(context, centerUid); // Add this line
+                // Show user ratings dialog - if available
+                _showUserRatingDialog(context, bookingId);
               },
               child: const Text("Service Done",
                   style: TextStyle(color: Colors.white)),
