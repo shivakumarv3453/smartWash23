@@ -9,37 +9,40 @@ class ForgotPassword extends StatefulWidget {
 }
 
 class _ForgotPasswordState extends State<ForgotPassword> {
-  final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool isLoading = false;
 
   Future<void> resetPassword() async {
     try {
+      setState(() => isLoading = true);
       await FirebaseAuth.instance
           .sendPasswordResetEmail(email: emailController.text.trim());
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-          "Password reset email sent! Please check your inbox.",
-          style: TextStyle(fontSize: 18.0),
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset email sent! Check your inbox.'),
+          backgroundColor: Colors.green,
         ),
-      ));
-      // ignore: use_build_context_synchronously
+      );
+
       Navigator.pop(context);
-    } on FirebaseAuthException catch (e) {
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          e.message ?? "An error occurred.",
-          style: const TextStyle(fontSize: 18.0),
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error: ${e.toString()}"),
+          backgroundColor: Colors.red,
         ),
-      ));
+      );
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color.fromARGB(255, 252, 250, 249),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -47,17 +50,18 @@ class _ForgotPasswordState extends State<ForgotPassword> {
             const Text(
               "Forgot Password?",
               style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30.0,
-                  fontWeight: FontWeight.bold),
+                color: Colors.deepOrange,
+                fontSize: 30.0,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 10.0),
             const Text(
-              "Enter your email to reset your password",
+              "We'll send you a reset link",
               style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 18.0,
-                  fontWeight: FontWeight.w500),
+                color: Colors.deepOrange,
+                fontSize: 18.0,
+              ),
             ),
             Padding(
               padding:
@@ -68,46 +72,80 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                   children: [
                     TextFormField(
                       controller: emailController,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your email';
-                        }
-                        return null;
-                      },
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
+                      validator: (value) => value!.isEmpty
+                          ? 'Enter your email'
+                          : !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                                  .hasMatch(value)
+                              ? 'Enter a valid email'
+                              : null,
+                      style: const TextStyle(color: Colors.black),
+                      decoration: InputDecoration(
                         hintText: "Email",
-                        hintStyle:
-                            TextStyle(fontSize: 18.0, color: Colors.white70),
-                        prefixIcon: Icon(
-                          Icons.email,
-                          color: Colors.white70,
-                          size: 25.0,
+                        hintStyle: const TextStyle(color: Colors.black45),
+                        prefixIcon:
+                            const Icon(Icons.email, color: Colors.deepOrange),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide:
+                              const BorderSide(color: Colors.deepOrange),
+                          borderRadius: BorderRadius.circular(18),
                         ),
-                        border: OutlineInputBorder(),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(
+                              color: Colors.deepOrange, width: 2),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 30.0),
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () {
+                          FocusScope.of(context).unfocus();
+                          if (_formKey.currentState!.validate()) {
+                            resetPassword();
+                          }
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.deepOrange,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Center(
+                            child: isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    "Send Reset Link",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18.0,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20.0),
-                    GestureDetector(
-                      onTap: () {
-                        if (_formKey.currentState!.validate()) {
-                          resetPassword();
-                        }
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            "Reset Password",
-                            style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 18.0,
-                                fontWeight: FontWeight.bold),
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Text(
+                          "Back to Login",
+                          style: TextStyle(
+                            color: Colors.deepOrange,
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),

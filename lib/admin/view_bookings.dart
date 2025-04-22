@@ -576,23 +576,6 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
     );
   }
 
-// Add this function to help debug your ratings issue
-  // Debugging function to check the exact structure of your bookingRatings collection
-  void _debugBookingRatings() {
-    FirebaseFirestore.instance
-        .collection('bookingRatings')
-        .get()
-        .then((snapshot) {
-      print("Total ratings found: ${snapshot.docs.length}");
-
-      if (snapshot.docs.isNotEmpty) {
-        print("First rating document data:");
-        print(snapshot.docs.first.data());
-        print("First rating document ID: ${snapshot.docs.first.id}");
-      }
-    });
-  }
-
   void _showStatusOptions(
     BuildContext context,
     String bookingId,

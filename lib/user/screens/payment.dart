@@ -1,5 +1,3 @@
-import 'dart:html' as html;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'dart:convert';
@@ -7,7 +5,7 @@ import 'package:http/http.dart' as http;
 
 class PaymentPage extends StatefulWidget {
   final String bookingId;
-  final int amount; // in paise (₹250 = 25000)
+  final int amount; // in paise
 
   const PaymentPage({super.key, required this.bookingId, required this.amount});
 
@@ -23,18 +21,11 @@ class _PaymentPageState extends State<PaymentPage> {
     super.initState();
     _razorpay = Razorpay();
 
-    // Automatically trigger payment on page load for web
-    Future.delayed(Duration.zero, () {
-      if (kIsWeb) {
-        _openWebCheckout(); // Web checkout
-      } else {
-        _openMobileCheckout(); // Mobile checkout
-      }
-    });
-
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+
+    _openMobileCheckout(); // Trigger immediately
   }
 
   @override
@@ -43,39 +34,6 @@ class _PaymentPageState extends State<PaymentPage> {
     super.dispose();
   }
 
-  // // Web checkout implementation
-  void _openWebCheckout() async {
-    final order = await _createOrderOnServer();
-
-    if (order == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to create order')),
-      );
-      return;
-    }
-
-    final options = {
-      'key': 'rzp_test_6JdX7oPFCEpYn7',
-      'amount': widget.amount,
-      'name': 'Smart Wash',
-      'description': 'Booking for Wash',
-      'order_id': order['id'], // 👈 Very important for web
-      'prefill': {
-        'contact': '9611227942',
-        'email': 'shivakumarv3453@email.com',
-      },
-      'currency': 'INR',
-      'theme': {'color': '#3399cc'}
-    };
-
-    // Open Razorpay checkout in web view
-    html.window.open('https://checkout.razorpay.com/v1/checkout.js',
-        'Razorpay Payment', 'width=500, height=600');
-
-    html.window.postMessage(options, '*');
-  }
-
-  // Mobile checkout implementation
   void _openMobileCheckout() async {
     final order = await _createOrderOnServer();
 
@@ -91,7 +49,7 @@ class _PaymentPageState extends State<PaymentPage> {
       'amount': widget.amount,
       'name': 'Smart Wash',
       'description': 'Booking for Wash',
-      'order_id': order['id'], // 👈 Required for Razorpay server integration
+      'order_id': order['id'],
       'prefill': {
         'contact': '9611227942',
         'email': 'shivakumarv3453@email.com',
@@ -122,15 +80,13 @@ class _PaymentPageState extends State<PaymentPage> {
 
   void _handleExternalWallet(ExternalWalletResponse response) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text('External Wallet Selected: ${response.walletName}')),
+      SnackBar(content: Text('External Wallet: ${response.walletName}')),
     );
   }
 
   Future<Map<String, dynamic>?> _createOrderOnServer() async {
     try {
-      final url = Uri.parse(
-          'http://127.0.0.1:3000/create-order'); // Use actual backend URL if deployed
+      final url = Uri.parse('https://your-ngrok-or-backend-url/create-order'); // Replace this
 
       final response = await http.post(
         url,

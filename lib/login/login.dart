@@ -24,23 +24,23 @@ class _LoginState extends State<Login> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-
   bool isPasswordVisible = false;
   bool isAdminLogin = false;
+  bool isLoading = false;
+  bool isGoogleLoading = false;
+  bool isForgotPasswordLoading = false;
 
-  // ✅ Google Sign-In logic
   Future<void> signInWithGoogle() async {
     try {
+      setState(() => isGoogleLoading = true);
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-
       if (googleUser == null) {
-        // The user canceled the sign-in
+        setState(() => isGoogleLoading = false);
         return;
       }
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
-
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -48,8 +48,7 @@ class _LoginState extends State<Login> {
 
       UserCredential userCredential =
           await FirebaseAuth.instance.signInWithCredential(credential);
-      print("✅ Google sign-in successful");
-      // Optionally save to Firestore (if you need to track users)
+
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
@@ -66,24 +65,25 @@ class _LoginState extends State<Login> {
         });
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Google Sign-In Successful!"),
-      ));
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Google Sign-In Successful!")),
+      );
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const Dash()),
       );
     } catch (e) {
-      print("❌ Google sign-in failed: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Google Sign-In failed: $e")),
+        SnackBar(content: Text("Google Sign-In failed: ${e.toString()}")),
       );
+    } finally {
+      if (mounted) setState(() => isGoogleLoading = false);
     }
   }
 
   Future<void> loginUser() async {
     try {
+      setState(() => isLoading = true);
       if (isAdminLogin) {
         await loginAdmin();
       } else {
@@ -91,115 +91,38 @@ class _LoginState extends State<Login> {
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
-
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Login Successful!"),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Login Successful!")),
+        );
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const Dash()),
         );
       }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.message ?? "An error occurred."),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? "An error occurred.")),
+      );
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
   }
-  // Future<void> loginUser() async {
-  //   try {
-  //     FocusScope.of(context).unfocus();
-
-  //     // Show loading dialog
-  //     showDialog(
-  //       context: context,
-  //       barrierDismissible: false,
-  //       builder: (context) => const Center(child: CircularProgressIndicator()),
-  //     );
-
-  //     // Authenticate with Firebase
-  //     UserCredential userCredential =
-  //         await FirebaseAuth.instance.signInWithEmailAndPassword(
-  //       email: emailController.text.trim(),
-  //       password: passwordController.text.trim(),
-  //     );
-
-  //     // Check user role
-  //     final isAdmin = await _checkIfAdmin(userCredential.user!.uid);
-  //     final isRegularUser = await _checkIfRegularUser(userCredential.user!.uid);
-
-  //     // Close loading dialog
-  //     Navigator.of(context).pop();
-
-  //     if (isAdminLogin && isAdmin) {
-  //       // Admin login successful
-  //       Navigator.pushReplacement(
-  //         context,
-  //         MaterialPageRoute(
-  //           builder: (context) =>
-  //               AdminDashboard(adminUid: userCredential.user!.uid),
-  //         ),
-  //       );
-  //     } else if (!isAdminLogin && isRegularUser) {
-  //       // Regular user login successful
-  //       Navigator.pushReplacement(
-  //         context,
-  //         MaterialPageRoute(builder: (context) => const Dash()),
-  //       );
-  //     } else {
-  //       // Role mismatch
-  //       await FirebaseAuth.instance.signOut();
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(
-  //             content: Text(isAdminLogin
-  //                 ? 'This account is not registered as admin'
-  //                 : 'Please use admin login for this account')),
-  //       );
-  //     }
-  //   } on FirebaseAuthException catch (e) {
-  //     Navigator.of(context).pop(); // Close loading dialog
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text(e.message ?? "Authentication failed")),
-  //     );
-  //   } catch (e) {
-  //     Navigator.of(context).pop(); // Close loading dialog
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text("Error: ${e.toString()}")),
-  //     );
-  //   }
-  // }
-
-  // Future<bool> _checkIfAdmin(String uid) async {
-  //   final doc =
-  //       await FirebaseFirestore.instance.collection('partners').doc(uid).get();
-  //   return doc.exists;
-  // }
-
-  // Future<bool> _checkIfRegularUser(String uid) async {
-  //   final doc =
-  //       await FirebaseFirestore.instance.collection('users').doc(uid).get();
-  //   return doc.exists;
-  // }
 
   Future<void> loginAdmin() async {
     try {
       FocusScope.of(context).unfocus();
-
-      // First authenticate with Firebase Auth
       UserCredential userCredential =
           await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
-      // Then verify they're actually a partner
       DocumentSnapshot adminDoc = await FirebaseFirestore.instance
           .collection('partners')
           .doc(userCredential.user!.uid)
           .get();
 
       if (adminDoc.exists) {
-        // Successful partner login
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -207,33 +130,49 @@ class _LoginState extends State<Login> {
           ),
         );
       } else {
-        // Not actually a partner - sign them out
         await FirebaseAuth.instance.signOut();
         throw Exception("Not a registered partner");
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Login failed: ${e.toString()}"),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login failed: ${e.toString()}")),
+      );
+    }
+  }
+
+  Future<void> navigateToForgotPassword() async {
+    try {
+      setState(() => isForgotPasswordLoading = true);
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ForgotPassword()),
+      );
+    } finally {
+      if (mounted) setState(() => isForgotPasswordLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color.fromARGB(255, 252, 250, 249),
       body: SingleChildScrollView(
         child: Column(
           children: [
             const SizedBox(height: 70.0),
-            const Text("Welcome Back!",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 30.0,
-                    fontWeight: FontWeight.bold)),
+            const Text(
+              "Welcome Back!",
+              style: TextStyle(
+                color: Colors.deepOrange,
+                fontSize: 30.0,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 10.0),
-            const Text("Login to continue",
-                style: TextStyle(color: Colors.white70, fontSize: 18.0)),
+            const Text(
+              "Login to continue",
+              style: TextStyle(color: Colors.deepOrange, fontSize: 18.0),
+            ),
             Padding(
               padding:
                   const EdgeInsets.symmetric(horizontal: 20.0, vertical: 30.0),
@@ -242,9 +181,12 @@ class _LoginState extends State<Login> {
                 child: Column(
                   children: [
                     SwitchListTile(
-                      title: Text(isAdminLogin ? "Admin Login" : "User Login",
-                          style: TextStyle(color: Colors.white)),
+                      title: Text(
+                        isAdminLogin ? "Admin Login" : "User Login",
+                        style: const TextStyle(color: Colors.deepOrange),
+                      ),
                       value: isAdminLogin,
+                      activeColor: Colors.deepOrange,
                       onChanged: (bool value) {
                         setState(() {
                           isAdminLogin = value;
@@ -255,12 +197,21 @@ class _LoginState extends State<Login> {
                       controller: emailController,
                       validator: (value) =>
                           value!.isEmpty ? 'Enter your email' : null,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
+                      style: const TextStyle(color: Colors.black),
+                      decoration: InputDecoration(
                         hintText: "Email",
-                        hintStyle: TextStyle(color: Colors.white70),
-                        prefixIcon: Icon(Icons.email, color: Colors.white70),
-                        border: OutlineInputBorder(),
+                        hintStyle: const TextStyle(color: Colors.black45),
+                        prefixIcon:
+                            const Icon(Icons.email, color: Colors.deepOrange),
+                        enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.deepOrange),
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(18))),
+                        focusedBorder: OutlineInputBorder(
+                            borderSide:
+                                BorderSide(color: Colors.deepOrange, width: 2),
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(18))),
                       ),
                     ),
                     const SizedBox(height: 20.0),
@@ -269,19 +220,18 @@ class _LoginState extends State<Login> {
                       obscureText: !isPasswordVisible,
                       validator: (value) =>
                           value!.isEmpty ? 'Enter your password' : null,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.black),
                       decoration: InputDecoration(
                         hintText: "Password",
-                        hintStyle: const TextStyle(color: Colors.white70),
+                        hintStyle: const TextStyle(color: Colors.black45),
                         prefixIcon:
-                            const Icon(Icons.lock, color: Colors.white70),
-                        border: const OutlineInputBorder(),
+                            const Icon(Icons.lock, color: Colors.deepOrange),
                         suffixIcon: IconButton(
                           icon: Icon(
                             isPasswordVisible
                                 ? Icons.visibility
                                 : Icons.visibility_off,
-                            color: Colors.white70,
+                            color: Colors.deepOrange,
                           ),
                           onPressed: () {
                             setState(() {
@@ -289,78 +239,132 @@ class _LoginState extends State<Login> {
                             });
                           },
                         ),
+                        enabledBorder: const OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.deepOrange),
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(18))),
+                        focusedBorder: const OutlineInputBorder(
+                            borderSide:
+                                BorderSide(color: Colors.deepOrange, width: 2),
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(18))),
                       ),
                     ),
                     const SizedBox(height: 20.0),
                     Align(
                       alignment: Alignment.centerRight,
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: isForgotPasswordLoading
+                              ? null
+                              : navigateToForgotPassword,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 12),
+                            child: isForgotPasswordLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.deepOrange,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    "Forgot Password?",
+                                    style: TextStyle(
+                                      color: Colors.deepOrange,
+                                      fontSize: 16.0,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20.0),
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
                       child: GestureDetector(
-                        onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const ForgotPassword())),
-                        child: const Text("Forgot Password?",
-                            style: TextStyle(
-                                color: Colors.redAccent, fontSize: 16.0)),
+                        onTap: isLoading
+                            ? null
+                            : () {
+                                FocusScope.of(context).unfocus();
+                                if (_formKey.currentState!.validate()) {
+                                  loginUser();
+                                }
+                              },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.deepOrange,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Center(
+                            child: isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    "Login",
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18.0,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20.0),
-                    GestureDetector(
-                      onTap: () {
-                        FocusScope.of(context).unfocus(); // Hide keyboard
-                        if (_formKey.currentState!.validate()) {
-                          loginUser();
-                        }
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Center(
-                          child: Text("Login",
-                              style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 18.0,
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20.0),
-
-                    /// ✅ Google Sign-In Button
-                    GestureDetector(
-                      onTap: signInWithGoogle,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color.fromARGB(255, 255, 255, 255),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Center(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Image(
-                                image: AssetImage(
-                                    'assets/images/google.jpeg'), // Make sure to add the image in your assets
-                                height: 35.0,
-                                width: 35.0,
-                              ),
-                              SizedBox(
-                                  width: 15.0), // Space between logo and text
-                              Text(
-                                "Sign in with Google",
-                                style: TextStyle(
-                                  color: Color.fromARGB(255, 0, 0, 0),
-                                  fontSize: 18.0,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: isGoogleLoading ? null : signInWithGoogle,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.deepOrange,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Center(
+                            child: isGoogleLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Image(
+                                        image: AssetImage(
+                                            'assets/images/google.jpeg'),
+                                        height: 35.0,
+                                        width: 35.0,
+                                      ),
+                                      SizedBox(width: 15.0),
+                                      Text(
+                                        "Sign in with Google",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18.0,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                           ),
                         ),
                       ),
@@ -369,18 +373,32 @@ class _LoginState extends State<Login> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text("Don't have an account?",
-                            style:
-                                TextStyle(fontSize: 16.0, color: Colors.white)),
+                        const Text(
+                          "Don't have an account?",
+                          style:
+                              TextStyle(fontSize: 16.0, color: Colors.black87),
+                        ),
                         const SizedBox(width: 5.0),
-                        GestureDetector(
-                          onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => SignUp())),
-                          child: const Text("Sign Up",
+                        MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: isLoading
+                                ? null
+                                : () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) => SignUp()),
+                                    ),
+                            child: Text(
+                              "Sign Up",
                               style: TextStyle(
-                                  color: Colors.amber, fontSize: 18.0)),
+                                  color: isLoading
+                                      ? Colors.grey
+                                      : Colors.deepOrange,
+                                  fontSize: 18.0,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         ),
                       ],
                     ),
