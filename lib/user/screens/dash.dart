@@ -536,14 +536,14 @@ class _DashState extends State<Dash> {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      backgroundColor: Colors.deepOrange,
                       foregroundColor: Colors.white,
                       textStyle: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                       elevation: 5,
-                      shadowColor: Colors.greenAccent,
+                      shadowColor: Colors.deepOrangeAccent,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 12,

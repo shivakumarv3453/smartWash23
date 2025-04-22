@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -33,28 +34,43 @@ class _LoginState extends State<Login> {
   Future<void> signInWithGoogle() async {
     try {
       setState(() => isGoogleLoading = true);
+
+      // For Web, ensure Firebase persistence is set.
+      if (kIsWeb) {
+        await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+      }
+
+      // Start Google Sign-In
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
       if (googleUser == null) {
+        // User canceled sign-in
         setState(() => isGoogleLoading = false);
         return;
       }
 
+      // Get authentication details from Google
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
+
+      // Create Firebase credentials using the Google account details
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
+      // Sign in with the credentials
       UserCredential userCredential =
           await FirebaseAuth.instance.signInWithCredential(credential);
 
+      // Check if the user exists in Firestore, otherwise create a new user
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
           .get();
 
       if (!userDoc.exists) {
+        // User doesn't exist in Firestore, create a new document
         await FirebaseFirestore.instance
             .collection('users')
             .doc(userCredential.user!.uid)
@@ -65,18 +81,23 @@ class _LoginState extends State<Login> {
         });
       }
 
+      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Google Sign-In Successful!")),
       );
+
+      // Navigate to the Dashboard
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const Dash()),
       );
     } catch (e) {
+      // Show error message if Google Sign-In fails
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Google Sign-In failed: ${e.toString()}")),
       );
     } finally {
+      // Hide the loading spinner once the sign-in process is complete
       if (mounted) setState(() => isGoogleLoading = false);
     }
   }

@@ -43,6 +43,7 @@ PreferredSizeWidget custAppBarr(
                 children: [
                   IconButton(
                     icon: const Icon(Icons.notifications),
+                    color: Colors.white,
                     onPressed: () async {
                       if (unreadCount == 0) {
                         showDialog(

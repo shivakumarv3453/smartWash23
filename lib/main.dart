@@ -3,17 +3,17 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:smart_wash/login/login.dart';
 import 'package:smart_wash/user/screens/dash.dart';
 import 'package:smart_wash/user/screens/payment.dart';
-// import 'package:smart_wash/login.dart';
-// import 'dart:html' as html;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     if (kIsWeb) {
+      // Initialize Firebase for web with the correct options
       await Firebase.initializeApp(
         options: const FirebaseOptions(
           apiKey: "AIzaSyDBXwnO8b0OYrc7d8ndv0J28bDNC6aZlNw",
@@ -24,8 +24,10 @@ void main() async {
           appId: "1:760988528329:web:5f2e69aa3d4eec67512718",
         ),
       );
+      // Set persistence for Firebase Auth on Web
       await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
     } else {
+      // Initialize Firebase for mobile (iOS/Android)
       await Firebase.initializeApp();
       FirebaseMessaging messaging = FirebaseMessaging.instance;
       await messaging.requestPermission();
@@ -62,13 +64,66 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
   @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _checking = true;
+  User? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _attemptSilentLogin();
+  }
+
+  // Attempt silent login to see if there's an already authenticated user
+  Future<void> _attemptSilentLogin() async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final googleUser = await googleSignIn.signInSilently();
+
+      if (googleUser != null) {
+        final googleAuth = await googleUser.authentication;
+
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        UserCredential userCredential =
+            await FirebaseAuth.instance.signInWithCredential(credential);
+        setState(() {
+          _user = userCredential.user;
+        });
+      } else {
+        // If no silent sign-in, check if there's a current user
+        setState(() {
+          _user = FirebaseAuth.instance.currentUser;
+        });
+      }
+    } catch (e) {
+      print("Silent Sign-In Error: $e");
+      setState(() {
+        _user = FirebaseAuth.instance.currentUser;
+      });
+    } finally {
+      setState(() {
+        _checking = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+    return FutureBuilder(
+      future: FirebaseAuth.instance
+          .authStateChanges()
+          .first, // Listen to auth state
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -76,15 +131,18 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasData) {
-          return Dash(); // Replace with your actual dashboard widget
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          return const Dash(); // If the user is signed in, show the dashboard.
         } else {
-          return Login(); // Replace with your actual login widget
+          return const Login(); // If no user is signed in, show the login screen.
         }
       },
     );
   }
-} // class MyHomePage extends StatefulWidget {
+}
+
+// class MyHomePage extends StatefulWidget {
 //   const MyHomePage({super.key, required this.title});
 
 //   // This widget is the home page of your application. It is stateful, meaning

@@ -1,9 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:smart_wash/constants/app_colors.dart';
 import 'package:smart_wash/user/app_bar.dart';
 // import 'package:smart_wash/user/screens/payment.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:smart_wash/user/screens/feedback_display.dart';
+import 'package:smart_wash/user/screens/feedback_error_widget.dart';
+import 'package:smart_wash/user/screens/feedback_input_form.dart';
 
 class BookingDetailsScreen extends StatelessWidget {
   final String bookingId;
@@ -300,7 +304,8 @@ class BookingDetailsScreen extends StatelessWidget {
           // Cancel button (conditionally shown)
           if (status != 'Cancelled' &&
               status != 'Completed' &&
-              status != 'Rejected')
+              status != 'Rejected' &&
+              status != 'Service Done')
             Padding(
               padding: const EdgeInsets.all(20),
               child: SizedBox(
@@ -324,327 +329,78 @@ class BookingDetailsScreen extends StatelessWidget {
                 ),
               ),
             ),
+          // At the top of your booking_status_card.dart
+
+// Then replace the feedback section with:
           if (status == 'Service Done')
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
+                  color: AppColors.card,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.purple.shade100),
-                ),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Use StreamBuilder to listen for changes to the feedback
-                    StreamBuilder<DocumentSnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('bookingRatings')
-                          .doc(bookingId)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-                        if (snapshot.hasError) {
-                          return const Text('Error loading feedback');
-                        }
-
-                        final hasFeedback =
-                            snapshot.hasData && snapshot.data!.exists;
-                        final feedbackData = hasFeedback
-                            ? snapshot.data!.data() as Map<String, dynamic>
-                            : null;
-                        final existingRating = feedbackData?['rating'] ?? 0.0;
-                        final existingComment = feedbackData?['comment'] ?? '';
-
-                        if (!hasFeedback) {
-                          // Show rating UI only if no feedback exists
-                          return Column(
-                            children: [
-                              const Center(
-                                child: Text(
-                                  "Rate Our Service",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.purple,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              RatingBar.builder(
-                                initialRating: 0,
-                                minRating: 1,
-                                allowHalfRating: true,
-                                itemCount: 5,
-                                itemBuilder: (context, _) =>
-                                    const Icon(Icons.star, color: Colors.amber),
-                                onRatingUpdate: (rating) {
-                                  // Handle rating update
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              const Text("Leave your feedback here."),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: () {
-                                  // Show dialog to submit feedback
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) {
-                                      final TextEditingController
-                                          feedbackController =
-                                          TextEditingController();
-                                      double newRating = 0;
-
-                                      return AlertDialog(
-                                        title: const Text("Leave Feedback"),
-                                        content: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            RatingBar.builder(
-                                              initialRating: 0,
-                                              minRating: 1,
-                                              allowHalfRating: true,
-                                              itemCount: 5,
-                                              itemBuilder: (context, _) =>
-                                                  const Icon(Icons.star,
-                                                      color: Colors.amber),
-                                              onRatingUpdate: (rating) {
-                                                newRating = rating;
-                                              },
-                                            ),
-                                            const SizedBox(height: 8),
-                                            TextField(
-                                              controller: feedbackController,
-                                              decoration: const InputDecoration(
-                                                hintText:
-                                                    "Type your feedback here...",
-                                              ),
-                                              maxLines: 4,
-                                            ),
-                                          ],
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(context),
-                                            child: const Text("Cancel"),
-                                          ),
-                                          ElevatedButton(
-                                            onPressed: () async {
-                                              // Ensure user is logged in
-                                              final user = FirebaseAuth
-                                                  .instance.currentUser;
-                                              if (user == null) {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                      content: Text(
-                                                          "Please log in to submit feedback.")),
-                                                );
-                                                return;
-                                              }
-                                              try {
-                                                final feedbackText =
-                                                    feedbackController.text;
-                                                // Add new feedback in Firestore
-                                                await FirebaseFirestore.instance
-                                                    .collection(
-                                                        'bookingRatings')
-                                                    .doc(bookingId)
-                                                    .set({
-                                                  'rating': newRating,
-                                                  'comment': feedbackText,
-                                                  'submittedAt': FieldValue
-                                                      .serverTimestamp(),
-                                                  'userId': user.uid,
-                                                  'centerUid': centerUid,
-                                                  'bookingId': bookingId,
-                                                });
-
-                                                // Update booking document to mark feedback as submitted
-                                                await FirebaseFirestore.instance
-                                                    .collection('bookings')
-                                                    .doc(bookingId)
-                                                    .update(
-                                                        {'hasFeedback': true});
-
-                                                Navigator.pop(
-                                                    context); // Close dialog
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                      content: Text(
-                                                          "Thanks for your feedback!")),
-                                                );
-                                              } catch (e) {
-                                                // Handle errors
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  SnackBar(
-                                                      content: Text(
-                                                          "Failed to submit feedback: $e")),
-                                                );
-                                              }
-                                            },
-                                            child: const Text("Submit"),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                                child: const Text("Submit Feedback"),
-                              ),
-                            ],
-                          );
-                        } else {
-                          // Show update UI only if feedback exists
-                          return Column(
-                            children: [
-                              const Text(
-                                "Your Rating",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              RatingBar.builder(
-                                initialRating: existingRating,
-                                minRating: 1,
-                                allowHalfRating: true,
-                                itemCount: 5,
-                                itemBuilder: (context, _) => const Icon(
-                                  Icons.star,
-                                  color: Colors.amber,
-                                ),
-                                ignoreGestures:
-                                    true, // Make rating bar non-interactive
-                                onRatingUpdate:
-                                    (rating) {}, // Empty callback since we're just displaying
-                              ),
-                              const SizedBox(height: 8),
-                              Text("Your Feedback: $existingComment"),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: () {
-                                  // Show dialog to update feedback
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) {
-                                      final TextEditingController
-                                          feedbackController =
-                                          TextEditingController(
-                                              text: existingComment);
-                                      double updatedRating = existingRating;
-
-                                      return AlertDialog(
-                                        title: const Text("Update Feedback"),
-                                        content: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            RatingBar.builder(
-                                              initialRating: existingRating,
-                                              minRating: 1,
-                                              allowHalfRating: true,
-                                              itemCount: 5,
-                                              itemBuilder: (context, _) =>
-                                                  const Icon(
-                                                Icons.star,
-                                                color: Colors.amber,
-                                              ),
-                                              onRatingUpdate: (rating) {
-                                                updatedRating = rating;
-                                              },
-                                            ),
-                                            const SizedBox(height: 8),
-                                            TextField(
-                                              controller: feedbackController,
-                                              decoration: const InputDecoration(
-                                                hintText:
-                                                    "Type your feedback here...",
-                                              ),
-                                              maxLines: 4,
-                                            ),
-                                          ],
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(context),
-                                            child: const Text("Cancel"),
-                                          ),
-                                          ElevatedButton(
-                                            onPressed: () async {
-                                              // Ensure user is logged in
-                                              final user = FirebaseAuth
-                                                  .instance.currentUser;
-                                              if (user == null) {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                      content: Text(
-                                                          "Please log in to submit feedback.")),
-                                                );
-                                                return;
-                                              }
-                                              try {
-                                                final feedbackText =
-                                                    feedbackController.text;
-                                                // Update feedback in Firestore
-                                                await FirebaseFirestore.instance
-                                                    .collection(
-                                                        'bookingRatings')
-                                                    .doc(bookingId)
-                                                    .update({
-                                                  'rating': updatedRating,
-                                                  'comment': feedbackText,
-                                                  'submittedAt': FieldValue
-                                                      .serverTimestamp(),
-                                                });
-
-                                                Navigator.pop(
-                                                    context); // Close dialog
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                      content: Text(
-                                                          "Thanks for updating your feedback!")),
-                                                );
-                                              } catch (e) {
-                                                // Handle errors
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  SnackBar(
-                                                      content: Text(
-                                                          "Failed to update feedback: $e")),
-                                                );
-                                              }
-                                            },
-                                            child: const Text("Submit"),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                                child: const Text("Update Feedback"),
-                              ),
-                            ],
-                          );
-                        }
-                      },
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 4),
                     ),
                   ],
+                  border: Border.all(
+                    color: AppColors.primaryLight,
+                    width: 1,
+                  ),
+                ),
+                padding: const EdgeInsets.all(24),
+                child: StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('bookingRatings')
+                      .doc(bookingId)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) return const FeedbackErrorWidget();
+
+                    final hasFeedback =
+                        snapshot.hasData && snapshot.data!.exists;
+                    final feedbackData = hasFeedback
+                        ? snapshot.data!.data() as Map<String, dynamic>
+                        : null;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Your Experience",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (!hasFeedback)
+                          FeedbackInputForm(
+                            bookingId: bookingId,
+                            centerUid: centerUid,
+                          )
+                        else
+                          FeedbackDisplay(
+                            rating: feedbackData?['rating'] ?? 0.0,
+                            comment: feedbackData?['comment'] ?? '',
+                            bookingId: bookingId,
+                          ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
-          // Proceed with payment button (if booking is in Confirmed state)
+// Proceed with payment button (if booking is in Confirmed state)
           if (status.toString().startsWith('Confirmed'))
             Padding(
               padding: const EdgeInsets.all(20),
@@ -719,6 +475,8 @@ class BookingDetailsScreen extends StatelessWidget {
         return Colors.grey[800]!;
       case 'pending':
         return Colors.orange;
+      case 'Confirmed - Proceed with Payment':
+        return Colors.blue.shade800;
       default:
         return Colors.green;
     }

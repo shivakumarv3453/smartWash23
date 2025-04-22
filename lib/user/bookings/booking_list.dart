@@ -251,8 +251,10 @@ class BookingListScreen extends StatelessWidget {
         return Colors.grey.shade800;
       case 'pending':
         return Colors.orange.shade800;
-      case 'confirmed':
+      case 'Confirmed - Proceed with Payment':
         return Colors.blue.shade800;
+      case 'Service Done':
+        return Colors.grey[800]!;
       default:
         return const Color.fromARGB(255, 39, 127, 43);
     }

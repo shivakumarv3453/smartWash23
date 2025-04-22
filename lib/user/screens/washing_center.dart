@@ -65,16 +65,18 @@ class _WashingCenterDropdownState extends State<WashingCenterDropdown> {
         filled: true,
         fillColor: Colors.grey[100],
         enabledBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Colors.greenAccent, width: 2),
+          borderSide:
+              const BorderSide(color: Colors.deepOrangeAccent, width: 2),
           borderRadius: BorderRadius.circular(10),
         ),
         focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Colors.green, width: 2),
+          borderSide: const BorderSide(color: Colors.deepOrange, width: 2),
           borderRadius: BorderRadius.circular(10),
         ),
       ),
       dropdownColor: Colors.white,
-      icon: const Icon(Icons.arrow_drop_down, color: Colors.green, size: 30),
+      icon:
+          const Icon(Icons.arrow_drop_down, color: Colors.deepOrange, size: 30),
       isExpanded: true,
       isDense: true,
       menuMaxHeight: 200,
