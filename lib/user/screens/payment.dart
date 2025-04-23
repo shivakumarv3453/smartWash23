@@ -88,7 +88,8 @@ class _PaymentPageState extends State<PaymentPage> {
 
   Future<Map<String, dynamic>?> _createOrderOnServer() async {
     try {
-      final url = Uri.parse('https://bf1f-106-51-87-203.ngrok-free.app/create-order');
+      final url =
+          Uri.parse('https://smartwash-backend.onrender.com/create-order');
 
       print('Calling backend to create Razorpay order...');
       print('Amount (paise): ${widget.amount}');
