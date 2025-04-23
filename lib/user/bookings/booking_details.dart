@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smart_wash/constants/app_colors.dart';
 import 'package:smart_wash/user/app_bar.dart';
 // import 'package:smart_wash/user/screens/payment.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:smart_wash/user/screens/feedback_display.dart';
 import 'package:smart_wash/user/screens/feedback_error_widget.dart';
 import 'package:smart_wash/user/screens/feedback_input_form.dart';
@@ -446,7 +445,7 @@ class BookingDetailsScreen extends StatelessWidget {
                                   '/payment',
                                   arguments: {
                                     'bookingId': bookingId,
-                                    'amount': 1,
+                                    'amount': 100,
                                   },
                                 );
                               },

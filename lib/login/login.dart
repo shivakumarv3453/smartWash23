@@ -35,69 +35,81 @@ class _LoginState extends State<Login> {
     try {
       setState(() => isGoogleLoading = true);
 
-      // For Web, ensure Firebase persistence is set.
       if (kIsWeb) {
         await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
       }
 
-      // Start Google Sign-In
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-
       if (googleUser == null) {
-        // User canceled sign-in
         setState(() => isGoogleLoading = false);
         return;
       }
 
-      // Get authentication details from Google
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
 
-      // Create Firebase credentials using the Google account details
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Sign in with the credentials
       UserCredential userCredential =
           await FirebaseAuth.instance.signInWithCredential(credential);
 
-      // Check if the user exists in Firestore, otherwise create a new user
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .get();
+      final uid = userCredential.user!.uid;
+
+      if (isAdminLogin) {
+        // Check if the user is a registered partner
+        final adminDoc = await FirebaseFirestore.instance
+            .collection('partners')
+            .doc(uid)
+            .get();
+
+        if (adminDoc.exists) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Admin Google Sign-In Successful!")),
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AdminDashboard(adminUid: uid),
+            ),
+          );
+          return;
+        } else {
+          // Not a registered admin
+          await FirebaseAuth.instance.signOut();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Not a registered partner.")),
+          );
+          return;
+        }
+      }
+
+      // If not admin, proceed as a regular user
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
       if (!userDoc.exists) {
-        // User doesn't exist in Firestore, create a new document
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set({
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
           'name': userCredential.user!.displayName ?? '',
           'email': userCredential.user!.email ?? '',
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
 
-      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Google Sign-In Successful!")),
       );
-
-      // Navigate to the Dashboard
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const Dash()),
       );
     } catch (e) {
-      // Show error message if Google Sign-In fails
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Google Sign-In failed: ${e.toString()}")),
       );
     } finally {
-      // Hide the loading spinner once the sign-in process is complete
       if (mounted) setState(() => isGoogleLoading = false);
     }
   }
@@ -310,9 +322,12 @@ class _LoginState extends State<Login> {
                       child: GestureDetector(
                         onTap: isLoading
                             ? null
-                            : () {
+                            : () async {
                                 FocusScope.of(context).unfocus();
                                 if (_formKey.currentState!.validate()) {
+                                  await Future.delayed(const Duration(
+                                      milliseconds:
+                                          100)); // Let toggle state settle
                                   loginUser();
                                 }
                               },
@@ -353,7 +368,7 @@ class _LoginState extends State<Login> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.deepOrange,
+                            color: const Color.fromARGB(255, 253, 252, 252),
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: Center(
@@ -371,7 +386,7 @@ class _LoginState extends State<Login> {
                                     children: [
                                       Image(
                                         image: AssetImage(
-                                            'assets/images/google.jpeg'),
+                                            'assets/images/download.png'),
                                         height: 35.0,
                                         width: 35.0,
                                       ),
@@ -379,7 +394,7 @@ class _LoginState extends State<Login> {
                                       Text(
                                         "Sign in with Google",
                                         style: TextStyle(
-                                          color: Colors.white,
+                                          color: Colors.deepOrange,
                                           fontSize: 18.0,
                                           fontWeight: FontWeight.bold,
                                         ),

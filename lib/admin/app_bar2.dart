@@ -129,7 +129,7 @@ PreferredSizeWidget custAppBarr(
                 ],
               ),
             PopupMenuButton<String>(
-              icon: const Icon(Icons.menu),
+              icon: const Icon(Icons.menu, color: Colors.white),
               onSelected: (value) {
                 if (value == "Calendar") {
                   Navigator.push(

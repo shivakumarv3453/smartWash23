@@ -36,13 +36,15 @@ class _PaymentPageState extends State<PaymentPage> {
 
   void _openMobileCheckout() async {
     final order = await _createOrderOnServer();
-
-    if (order == null) {
+    if (order == null || order['id'] == null) {
+      print('Order creation failed or order ID is missing');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to create order')),
       );
       return;
     }
+
+    print('Opening Razorpay checkout with Order ID: ${order['id']}');
 
     var options = {
       'key': 'rzp_test_6JdX7oPFCEpYn7',
@@ -61,7 +63,7 @@ class _PaymentPageState extends State<PaymentPage> {
     try {
       _razorpay.open(options);
     } catch (e) {
-      debugPrint('Razorpay Error: $e');
+      debugPrint('Error opening Razorpay: $e');
     }
   }
 
@@ -86,7 +88,11 @@ class _PaymentPageState extends State<PaymentPage> {
 
   Future<Map<String, dynamic>?> _createOrderOnServer() async {
     try {
-      final url = Uri.parse('https://your-ngrok-or-backend-url/create-order'); // Replace this
+      final url = Uri.parse('https://bf1f-106-51-87-203.ngrok-free.app/create-order');
+
+      print('Calling backend to create Razorpay order...');
+      print('Amount (paise): ${widget.amount}');
+      print('Receipt: ${widget.bookingId}');
 
       final response = await http.post(
         url,
@@ -98,8 +104,13 @@ class _PaymentPageState extends State<PaymentPage> {
         }),
       );
 
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final data = jsonDecode(response.body);
+        print('Order created: ${data['id']}');
+        return data;
       } else {
         print('Failed to create order: ${response.body}');
         return null;

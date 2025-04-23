@@ -122,7 +122,9 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                 return GestureDetector(
                   onTap: () {
                     final status = doc['status'];
-                    if (status == "Service Done" || status == "Cancelled") {
+                    if (status == "Service Done" ||
+                        status == "Cancelled" ||
+                        status == "Rejected") {
                       // For Service Done, show ratings dialog instead of status options
                       if (status == "Service Done") {
                         _showUserRatingDialog(context, doc.id);
@@ -351,7 +353,8 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                                 if ((data["status"] ?? "") !=
                                         "Payment Method Confirmed (COD)" &&
                                     (data["status"] ?? "") != "Service Done" &&
-                                    (data["status"] ?? "") != "Cancelled")
+                                    (data["status"] ?? "") != "Cancelled" &&
+                                    (data["status"] ?? "") != "Rejected")
                                   IconButton(
                                     icon: const Icon(Icons.more_vert),
                                     iconSize: 20,
@@ -651,7 +654,7 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
               child: const Text("Cancel"),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
               onPressed: () async {
                 await _updateStatus(
                   context,

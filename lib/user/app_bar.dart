@@ -20,7 +20,13 @@ custAppBar(BuildContext context, String title, {bool showBack = false}) {
     ),
     actions: [
       PopupMenuButton<String>(
-        icon: const Icon(Icons.menu),
+        icon: const Icon(Icons.menu, color: Colors.white),
+        color: Colors.white, // Menu background color
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        splashRadius: 1, // Reduce ripple effect
+        tooltip: 'Menu',
         onSelected: (value) async {
           if (value == "Calendar") {
             Navigator.push(context,

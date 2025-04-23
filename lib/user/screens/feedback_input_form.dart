@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:smart_wash/constants/app_colors.dart';
 
@@ -29,7 +29,40 @@ class _FeedbackInputFormState extends State<FeedbackInputForm> {
   }
 
   Future<void> _submitFeedback() async {
-    // ... (keep existing submit logic)
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to submit feedback")),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('bookingRatings')
+          .doc(widget.bookingId)
+          .set({
+        'rating': _rating,
+        'comment': _feedbackController.text,
+        'submittedAt': FieldValue.serverTimestamp(),
+        'userId': user.uid,
+        'centerUid': widget.centerUid,
+        'bookingId': widget.bookingId,
+      });
+
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(widget.bookingId)
+          .update({'hasFeedback': true});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Thanks for your feedback!")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to submit feedback: $e")),
+      );
+    }
   }
 
   @override
