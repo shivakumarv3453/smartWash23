@@ -80,8 +80,8 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
               if (statusA == "Payment Method Confirmed (COD)" &&
                   statusB != "Payment Method Confirmed (COD)") {
                 return -1;
-              } else if (statusB == "Payment Method Confirmed (COD)" &&
-                  statusA != "Payment Method Confirmed (COD)") {
+              } else if (statusB == "Payment Method Confirmed (Online)" &&
+                  statusA != "Payment Method Confirmed (Online)") {
                 return 1;
               } else {
                 // Sort by timestamp (latest first)
@@ -206,8 +206,6 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                                   child: StreamBuilder<QuerySnapshot>(
                                     stream: FirebaseFirestore.instance
                                         .collection('bookingRatings')
-                                        .where('bookingId', isEqualTo: doc.id)
-                                        .orderBy('timestamp', descending: true)
                                         .snapshots(),
                                     builder: (context, ratingSnapshot) {
                                       if (ratingSnapshot.connectionState ==
@@ -222,13 +220,10 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                                           ),
                                         );
                                       }
-
                                       if (ratingSnapshot.hasData) {
-                                        // Filter ratings by either bookingId field OR document ID
                                         final bookingId = doc.id;
                                         var allRatings =
                                             ratingSnapshot.data!.docs;
-
                                         var bookingRatings =
                                             allRatings.where((ratingDoc) {
                                           var ratingData = ratingDoc.data()
@@ -518,7 +513,7 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                       bookingRatings[index].data() as Map<String, dynamic>;
                   var rating = data['rating'] ?? 0;
                   var userFeedback = data['comment'] ?? "No comment provided.";
-                  var timestamp = data['timestamp'] as Timestamp?;
+                  var timestamp = data['submittedAt'] as Timestamp?;
                   var dateTime = timestamp?.toDate();
                   var formattedDate = dateTime != null
                       ? "${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}"
@@ -653,19 +648,22 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
               onPressed: () => Navigator.pop(context),
               child: const Text("Cancel"),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-              onPressed: () async {
-                await _updateStatus(
-                  context,
-                  bookingId,
-                  "Confirmed - Awaiting Payment",
-                );
-                Navigator.pop(context);
-              },
-              child:
-                  const Text("Confirm", style: TextStyle(color: Colors.white)),
-            ),
+            // Only show Confirm button if status is NOT already "Confirmed - Awaiting Payment"
+            if (status.trim().toLowerCase() !=
+                "confirmed - awaiting payment".toLowerCase())
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                onPressed: () async {
+                  await _updateStatus(
+                    context,
+                    bookingId,
+                    "Confirmed - Awaiting Payment",
+                  );
+                  Navigator.pop(context);
+                },
+                child: const Text("Confirm",
+                    style: TextStyle(color: Colors.white)),
+              ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () async {

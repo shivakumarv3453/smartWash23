@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smart_wash/constants/app_colors.dart';
 import 'package:smart_wash/user/app_bar.dart';
-// import 'package:smart_wash/user/screens/payment.dart';
 import 'package:smart_wash/user/screens/feedback_display.dart';
 import 'package:smart_wash/user/screens/feedback_error_widget.dart';
 import 'package:smart_wash/user/screens/feedback_input_form.dart';
@@ -19,9 +18,6 @@ class BookingDetailsScreen extends StatelessWidget {
   });
 
   void _showCancelConfirmation(BuildContext context) {
-    // Check if the booking status is confirmed before showing the cancellation fee
-    // final isConfirmed = bookingData['status'] == 'Confirmed';
-
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -39,12 +35,6 @@ class BookingDetailsScreen extends StatelessWidget {
               const Icon(Icons.warning_amber_rounded,
                   color: Colors.orange, size: 48),
               const SizedBox(height: 16),
-              // if (isConfirmed)
-              //   const Text(
-              //     "10% cancellation fee will apply",
-              //     textAlign: TextAlign.center,
-              //     style: TextStyle(fontSize: 16),
-              //   ),
               const SizedBox(height: 8),
               Text(
                 "${bookingData['center']} • ${bookingData['date']}",
@@ -165,6 +155,7 @@ class BookingDetailsScreen extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final currentUser = FirebaseAuth.instance.currentUser;
+
     if (currentUser == null) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Authentication required')),
@@ -172,7 +163,7 @@ class BookingDetailsScreen extends StatelessWidget {
       return;
     }
 
-    // Show loading
+    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -182,7 +173,7 @@ class BookingDetailsScreen extends StatelessWidget {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Updating payment method...'),
+            Text('Confirming COD payment...'),
           ],
         ),
       ),
@@ -193,20 +184,22 @@ class BookingDetailsScreen extends StatelessWidget {
           .collection('bookings')
           .doc(bookingId)
           .update({
-        'status': 'Payment Method Confirmed (COD)',
+        'status': 'Payment Confirmed (COD)',
         'paymentMethod': 'COD',
+        'paymentStatus': 'pending', // Payment will be collected on delivery
         'lastUpdatedBy': currentUser.uid,
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      navigator.pop(); // close loading
+      navigator.pop(); // Close the loading dialog
       messenger.showSnackBar(
-        const SnackBar(content: Text('Payment method confirmed as COD')),
+        const SnackBar(content: Text('COD payment confirmed successfully')),
       );
     } catch (e, stackTrace) {
-      navigator.pop(); // close loading
+      navigator.pop(); // Close the loading dialog
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Failed to confirm payment method'),
+          content: Text('Failed to confirm COD payment'),
           backgroundColor: Colors.red,
         ),
       );
@@ -330,7 +323,7 @@ class BookingDetailsScreen extends StatelessWidget {
             ),
           // At the top of your booking_status_card.dart
 
-// Then replace the feedback section with:
+          // Then replace the feedback section with:
           if (status == 'Service Done')
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -399,7 +392,7 @@ class BookingDetailsScreen extends StatelessWidget {
                 ),
               ),
             ),
-// Proceed with payment button (if booking is in Confirmed state)
+          // Proceed with payment button (if booking is in Confirmed state)
           if (status.toString().startsWith('Confirmed'))
             Padding(
               padding: const EdgeInsets.all(20),
@@ -438,8 +431,8 @@ class BookingDetailsScreen extends StatelessWidget {
                             ),
                             ElevatedButton(
                               onPressed: () {
-                                Navigator.of(context).pop(); // close dialog
-                                // Razorpay integration to be done later
+                                Navigator.of(context)
+                                    .pop(); // close dialog // Razorpay integration to be done later
                                 Navigator.pushNamed(
                                   context,
                                   '/payment',

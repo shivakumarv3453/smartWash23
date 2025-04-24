@@ -9,6 +9,7 @@ import 'package:smart_wash/login/forget_password.dart';
 import 'package:smart_wash/user/screens/dash.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:connectivity_plus/connectivity_plus.dart'; // Add this package
 
 String hashPassword(String password) {
   return sha256.convert(utf8.encode(password)).toString();
@@ -31,7 +32,37 @@ class _LoginState extends State<Login> {
   bool isGoogleLoading = false;
   bool isForgotPasswordLoading = false;
 
+  // Add connectivity instance
+  final Connectivity _connectivity = Connectivity();
+
+  Future<bool> _checkInternetConnection() async {
+    try {
+      var connectivityResult = await _connectivity.checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        _showErrorSnackbar(
+            "No internet connection. Please check your network.");
+        return false;
+      }
+      return true;
+    } catch (e) {
+      _showErrorSnackbar("Unable to check network connection.");
+      return false;
+    }
+  }
+
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   Future<void> signInWithGoogle() async {
+    if (!await _checkInternetConnection()) return;
+
     try {
       setState(() => isGoogleLoading = true);
 
@@ -59,7 +90,6 @@ class _LoginState extends State<Login> {
       final uid = userCredential.user!.uid;
 
       if (isAdminLogin) {
-        // Check if the user is a registered partner
         final adminDoc = await FirebaseFirestore.instance
             .collection('partners')
             .doc(uid)
@@ -67,7 +97,10 @@ class _LoginState extends State<Login> {
 
         if (adminDoc.exists) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Admin Google Sign-In Successful!")),
+            const SnackBar(
+              content: Text("Admin Google Sign-In Successful!"),
+              backgroundColor: Colors.green,
+            ),
           );
           Navigator.pushReplacement(
             context,
@@ -77,16 +110,12 @@ class _LoginState extends State<Login> {
           );
           return;
         } else {
-          // Not a registered admin
           await FirebaseAuth.instance.signOut();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Not a registered partner.")),
-          );
+          _showErrorSnackbar("Not a registered partner.");
           return;
         }
       }
 
-      // If not admin, proceed as a regular user
       final userDoc =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
@@ -99,22 +128,28 @@ class _LoginState extends State<Login> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Google Sign-In Successful!")),
+        const SnackBar(
+          content: Text("Google Sign-In Successful!"),
+          backgroundColor: Colors.green,
+        ),
       );
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const Dash()),
       );
+    } on FirebaseAuthException catch (e) {
+      _handleFirebaseError(e);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Google Sign-In failed: ${e.toString()}")),
-      );
+      _showErrorSnackbar("Google Sign-In failed. Please try again.");
+      if (kDebugMode) print("Google Sign-In Error: $e");
     } finally {
       if (mounted) setState(() => isGoogleLoading = false);
     }
   }
 
   Future<void> loginUser() async {
+    if (!await _checkInternetConnection()) return;
+
     try {
       setState(() => isLoading = true);
       if (isAdminLogin) {
@@ -125,7 +160,10 @@ class _LoginState extends State<Login> {
           password: passwordController.text.trim(),
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Login Successful!")),
+          const SnackBar(
+            content: Text("Login Successful!"),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.pushReplacement(
           context,
@@ -133,12 +171,37 @@ class _LoginState extends State<Login> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "An error occurred.")),
-      );
+      _handleFirebaseError(e);
+    } catch (e) {
+      _showErrorSnackbar("Login failed. Please try again.");
+      if (kDebugMode) print("Login Error: $e");
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  void _handleFirebaseError(FirebaseAuthException e) {
+    String errorMessage;
+    switch (e.code) {
+      case 'user-not-found':
+        errorMessage = "No user found with this email.";
+        break;
+      case 'wrong-password':
+        errorMessage = "Incorrect password. Please try again.";
+        break;
+      case 'network-request-failed':
+        errorMessage = "Network error. Please check your internet connection.";
+        break;
+      case 'too-many-requests':
+        errorMessage = "Too many attempts. Please try again later.";
+        break;
+      case 'user-disabled':
+        errorMessage = "This account has been disabled.";
+        break;
+      default:
+        errorMessage = "An error occurred. Please try again.";
+    }
+    _showErrorSnackbar(errorMessage);
   }
 
   Future<void> loginAdmin() async {
@@ -164,22 +227,30 @@ class _LoginState extends State<Login> {
         );
       } else {
         await FirebaseAuth.instance.signOut();
-        throw Exception("Not a registered partner");
+        throw FirebaseAuthException(
+          code: 'not-a-partner',
+          message: 'Not a registered partner',
+        );
       }
+    } on FirebaseAuthException catch (e) {
+      _handleFirebaseError(e);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Login failed: ${e.toString()}")),
-      );
+      _showErrorSnackbar("Admin login failed. Please try again.");
+      if (kDebugMode) print("Admin Login Error: $e");
     }
   }
 
   Future<void> navigateToForgotPassword() async {
+    if (!await _checkInternetConnection()) return;
+
     try {
       setState(() => isForgotPasswordLoading = true);
       await Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const ForgotPassword()),
       );
+    } catch (e) {
+      _showErrorSnackbar("Cannot open forgot password. Please try again.");
     } finally {
       if (mounted) setState(() => isForgotPasswordLoading = false);
     }

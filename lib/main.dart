@@ -48,19 +48,18 @@ class MyApp extends StatelessWidget {
       title: 'Smart Wash',
       debugShowCheckedModeBanner: false,
       home: AuthWrapper(),
-        onGenerateRoute: (settings) {
-          if (settings.name == '/payment') {
-            final args = settings.arguments as Map<String, dynamic>;
-            return MaterialPageRoute(
-              builder: (_) => PaymentPage(
-                bookingId: args['bookingId'],
-                amount: args['amount'],
-              ),
-            );
-          }
-          return null;
-        },
-
+      onGenerateRoute: (settings) {
+        if (settings.name == '/payment') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (_) => PaymentPage(
+              bookingId: args['bookingId'],
+              amount: args['amount'],
+            ),
+          );
+        }
+        return null;
+      },
     );
   }
 }
