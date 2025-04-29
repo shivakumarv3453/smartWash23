@@ -122,28 +122,27 @@ class BookingDetailsScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, {TextStyle? valueStyle}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
+            width: 120,
             child: Text(
               label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-              ),
+              style: valueStyle ?? const TextStyle(fontSize: 16),
             ),
           ),
         ],
@@ -184,7 +183,7 @@ class BookingDetailsScreen extends StatelessWidget {
           .collection('bookings')
           .doc(bookingId)
           .update({
-        'status': 'Payment Confirmed (COD)',
+        'status': 'Payment Method Confirmed (COD)',
         'paymentMethod': 'COD',
         'paymentStatus': 'pending', // Payment will be collected on delivery
         'lastUpdatedBy': currentUser.uid,
@@ -207,255 +206,567 @@ class BookingDetailsScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _confirmOnlinePayment(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Authentication required')),
+      );
+      return;
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Confirming online payment...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(bookingId)
+          .update({
+        'status': 'Payment Method Confirmed (Online)',
+        'paymentMethod': 'Online',
+        'paymentStatus': 'paid', // Online payment is already received
+        'lastUpdatedBy': currentUser.uid,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      navigator.pop(); // Close the loading dialog
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Online payment confirmed successfully')),
+      );
+    } catch (e, stackTrace) {
+      navigator.pop(); // Close the loading dialog
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Failed to confirm online payment'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      debugPrint('Error: $e\n$stackTrace');
+    }
+  }
   @override
   Widget build(BuildContext context) {
     final rawStatus = bookingData['status'] ?? 'Pending';
-    // final hasFeedback = bookingData['feedback'] != null;
-    final centerUid =
-        bookingData['centerUid']; // if bookingData is a Map from Firestore
+    final centerUid = bookingData['centerUid'];
 
     // Customize status label for user
     final status = rawStatus == 'Confirmed - Awaiting Payment'
         ? 'Confirmed - Proceed with Payment'
         : rawStatus;
+
     return Scaffold(
       appBar: custAppBar(context, 'Booking Details'),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header with status
-                  Container(
-                    padding: const EdgeInsets.all(16),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('bookings')
+            .doc(bookingId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final bookingData = snapshot.data!.data() as Map<String, dynamic>;
+          final rawStatus = bookingData['status'] ?? 'Pending';
+          final centerUid = bookingData['centerUid'];
+          final price = (bookingData['price'] is Map
+              ? (bookingData['price'] as Map)['price']
+              : bookingData['price']) ?? 0;
+          final paymentMethod = bookingData['paymentMethod'] ?? 'Not specified';
+
+          // Customize status label for user
+          final status = rawStatus == 'Confirmed - Awaiting Payment'
+              ? 'Confirmed - Proceed with Payment'
+              : rawStatus;
+
+          return Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header with status
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: _getStatusBackgroundColor(status),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _getStatusIcon(status),
+                              color: _getStatusColor(status),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    status.toUpperCase(),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: _getStatusColor(status),
+                                      fontSize: 14,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    bookingData['center'] ?? 'Unknown Center',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Booking details section
+                      const Text(
+                        "BOOKING DETAILS",
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const Divider(height: 16),
+                      _buildDetailRow("Car Type", bookingData['carType'] ?? 'N/A'),
+                      _buildDetailRow("Wash Type", bookingData['washType'] ?? 'N/A'),
+                      _buildDetailRow("Service", bookingData['serviceType'] ?? 'N/A'),
+                      _buildDetailRow("Date", bookingData['date'] ?? 'N/A'),
+                      _buildDetailRow("Time", bookingData['time'] ?? 'N/A'),
+
+                      // Price and Payment Method section
+                      const SizedBox(height: 16),
+                      const Text(
+                        "PAYMENT INFORMATION",
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const Divider(height: 16),
+                      _buildDetailRow(
+                        "Total Amount",
+                        "₹${price.toStringAsFixed(2)}",
+                        valueStyle: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[700],
+                          fontSize: 16,
+                        ),
+                      ),
+                      _buildDetailRow(
+                        "Payment Method",
+                        _formatPaymentMethod(paymentMethod),
+                        valueStyle: TextStyle(
+                          color: paymentMethod == 'COD'
+                              ? Colors.orange[700]
+                              : Colors.blue[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+
+                      // Customer details section
+                      const SizedBox(height: 16),
+                      const Text(
+                        "CUSTOMER DETAILS",
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const Divider(height: 16),
+                      _buildDetailRow("Name", bookingData['userName'] ?? 'N/A'),
+                      _buildDetailRow("Phone", bookingData['userPhone'] ?? 'N/A'),
+                      _buildDetailRow("Location", bookingData['userLocation'] ?? 'N/A'),
+
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Action buttons section
+              if (status != 'Cancelled' &&
+                  status != 'Completed' &&
+                  status != 'Rejected' &&
+                  status != 'Service Done')
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.close, size: 20),
+                      label: const Text(
+                        "Cancel Booking",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade50,
+                        foregroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.red.shade100),
+                        ),
+                      ),
+                      onPressed: () => _showCancelConfirmation(context),
+                    ),
+                  ),
+                ),
+
+              // Feedback section
+              if (status == 'Service Done')
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
                     decoration: BoxDecoration(
-                      color: _getStatusBackgroundColor(status),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _getStatusIcon(status),
-                          color: _getStatusColor(status),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                status.toUpperCase(),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: _getStatusColor(status),
-                                  fontSize: 14,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                bookingData['center'] ?? 'Unknown Center',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 12,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 4),
                         ),
                       ],
+                      border: Border.all(
+                        color: AppColors.primaryLight,
+                        width: 1,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Booking details section
-                  const Text(
-                    "BOOKING DETAILS",
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const Divider(height: 16),
-                  _buildDetailRow("Car Type", bookingData['carType'] ?? 'N/A'),
-                  _buildDetailRow(
-                      "Wash Type", bookingData['washType'] ?? 'N/A'),
-                  _buildDetailRow(
-                      "Service", bookingData['serviceType'] ?? 'N/A'),
-                  _buildDetailRow("Date", bookingData['date'] ?? 'N/A'),
-                  _buildDetailRow("Time", bookingData['time'] ?? 'N/A'),
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
-          ),
-          // Cancel button (conditionally shown)
-          if (status != 'Cancelled' &&
-              status != 'Completed' &&
-              status != 'Rejected' &&
-              status != 'Service Done')
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.close, size: 20),
-                  label: const Text(
-                    "Cancel Booking",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.shade50,
-                    foregroundColor: Colors.red,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.red.shade100),
-                    ),
-                  ),
-                  onPressed: () => _showCancelConfirmation(context),
-                ),
-              ),
-            ),
-          // At the top of your booking_status_card.dart
+                    padding: const EdgeInsets.all(24),
+                    child: StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('bookingRatings')
+                          .doc(bookingId)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError) return const FeedbackErrorWidget();
 
-          // Then replace the feedback section with:
-          if (status == 'Service Done')
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                  border: Border.all(
-                    color: AppColors.primaryLight,
-                    width: 1,
-                  ),
-                ),
-                padding: const EdgeInsets.all(24),
-                child: StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('bookingRatings')
-                      .doc(bookingId)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+                        final hasFeedback = snapshot.hasData && snapshot.data!.exists;
+                        final feedbackData = hasFeedback
+                            ? snapshot.data!.data() as Map<String, dynamic>
+                            : null;
 
-                    if (snapshot.hasError) return const FeedbackErrorWidget();
-
-                    final hasFeedback =
-                        snapshot.hasData && snapshot.data!.exists;
-                    final feedbackData = hasFeedback
-                        ? snapshot.data!.data() as Map<String, dynamic>
-                        : null;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Your Experience",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        if (!hasFeedback)
-                          FeedbackInputForm(
-                            bookingId: bookingId,
-                            centerUid: centerUid,
-                          )
-                        else
-                          FeedbackDisplay(
-                            rating: feedbackData?['rating'] ?? 0.0,
-                            comment: feedbackData?['comment'] ?? '',
-                            bookingId: bookingId,
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
-          // Proceed with payment button (if booking is in Confirmed state)
-          if (status.toString().startsWith('Confirmed'))
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.payment, size: 20),
-                  label: const Text(
-                    "Proceed with Payment",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade50,
-                    foregroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.blue.shade100),
-                    ),
-                  ),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          title: const Text("Select Payment Method"),
-                          content: const Text(
-                              "Choose how you'd like to pay for the service."),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.of(context).pop(); // close dialog
-                                _confirmCODPayment(context); // call function
-                              },
-                              child: const Text("Pay After Service (COD)"),
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Your Experience",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
                             ),
-                            ElevatedButton(
-                              onPressed: () {
-                                Navigator.of(context)
-                                    .pop(); // close dialog // Razorpay integration to be done later
-                                Navigator.pushNamed(
-                                  context,
-                                  '/payment',
-                                  arguments: {
-                                    'bookingId': bookingId,
-                                    'amount': 100,
-                                  },
-                                );
-                              },
-                              child: const Text("Proceed with Online Payment"),
-                            ),
+                            const SizedBox(height: 16),
+                            if (!hasFeedback)
+                              FeedbackInputForm(
+                                bookingId: bookingId,
+                                centerUid: centerUid,
+                              )
+                            else
+                              FeedbackDisplay(
+                                rating: feedbackData?['rating'] ?? 0.0,
+                                comment: feedbackData?['comment'] ?? '',
+                                bookingId: bookingId,
+                              ),
                           ],
                         );
                       },
-                    );
-                  },
+                    ),
+                  ),
                 ),
-              ),
-            ),
-        ],
+
+              // Proceed with payment button
+              if (status.toString().startsWith('Confirmed'))
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.payment, size: 20),
+                      label: const Text(
+                        "Proceed with Payment",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade50,
+                        foregroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.blue.shade100),
+                        ),
+                      ),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return Dialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 0,
+                              backgroundColor: Colors.transparent,
+                              child: Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 20,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      "Select Payment Method",
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      "Choose how you'd like to pay for the service",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+
+                                    // COD Option
+                                    InkWell(
+                                      onTap: () {
+                                        Navigator.of(context).pop();
+                                        _confirmCODPayment(context);
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: Colors.grey.shade200),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.orange.shade50,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                Icons.account_balance_wallet_outlined,
+                                                color: Colors.orange,
+                                                size: 24,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            const Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    "Pay after Service",
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 16,
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 4),
+                                                  Text(
+                                                    "Pay after the service completion",
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const Icon(
+                                              Icons.chevron_right,
+                                              color: Colors.grey,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 16),
+
+                                    // Online Payment Option
+                                    InkWell(
+                                      onTap: () {
+                                        Navigator.of(context).pop();
+                                        Navigator.of(context)
+                                            .pushNamed('/payment', arguments: {
+                                          'bookingId': bookingId,
+                                          'amount': price,
+                                        }).then((result) {
+                                          if (result == 'success') {
+                                            _confirmOnlinePayment(context);
+                                          } else {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Payment not completed'),
+                                                behavior: SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          }
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: Colors.grey.shade200),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.shade50,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                Icons.credit_card,
+                                                color: Colors.blue,
+                                                size: 24,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            const Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    "Online Payment",
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 16,
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 4),
+                                                  Text(
+                                                    "Pay securely with card/UPI",
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const Icon(
+                                              Icons.chevron_right,
+                                              color: Colors.grey,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 24),
+
+                                    // Cancel Button
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(),
+                                      style: TextButton.styleFrom(
+                                        minimumSize: const Size(double.infinity, 48),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        "Cancel",
+                                        style: TextStyle(
+                                          color: Colors.grey,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
+
+// Helper method to format payment method display
+  String _formatPaymentMethod(String method) {
+    switch (method) {
+      case 'COD':
+        return 'Pay after Service';
+      case 'Online':
+        return 'Online Payment';
+      case 'Wallet':
+        return 'Wallet Balance';
+      default:
+        return method;
+    }
+  }
+
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {

@@ -27,7 +27,6 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
           stream: FirebaseFirestore.instance
               .collection("bookings")
               .where("centerUid", isEqualTo: widget.adminUid)
-              // .orderBy("timestamp", descending: true)
               .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -70,30 +69,23 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                 ),
               );
             }
+
             var bookings = snapshot.data!.docs;
             bookings.sort((a, b) {
-              String statusA =
-                  (a.data() as Map<String, dynamic>)['status'] ?? '';
-              String statusB =
-                  (b.data() as Map<String, dynamic>)['status'] ?? '';
-              // Prioritize Payment Method Confirmed
-              if (statusA == "Payment Method Confirmed (COD)" &&
-                  statusB != "Payment Method Confirmed (COD)") {
+              String statusA = (a.data() as Map<String, dynamic>)['status'] ?? '';
+              String statusB = (b.data() as Map<String, dynamic>)['status'] ?? '';
+
+              if (statusA == "Payment Method Confirmed (COD)" && statusB != "Payment Method Confirmed (COD)") {
                 return -1;
-              } else if (statusB == "Payment Method Confirmed (Online)" &&
-                  statusA != "Payment Method Confirmed (Online)") {
+              } else if (statusB == "Payment Method Confirmed (Online)" && statusA != "Payment Method Confirmed (Online)") {
                 return 1;
               } else {
-                // Sort by timestamp (latest first)
-                Timestamp tsA =
-                    (a.data() as Map<String, dynamic>)['timestamp'] ??
-                        Timestamp(0, 0);
-                Timestamp tsB =
-                    (b.data() as Map<String, dynamic>)['timestamp'] ??
-                        Timestamp(0, 0);
+                Timestamp tsA = (a.data() as Map<String, dynamic>)['timestamp'] ?? Timestamp(0, 0);
+                Timestamp tsB = (b.data() as Map<String, dynamic>)['timestamp'] ?? Timestamp(0, 0);
                 return tsB.compareTo(tsA);
               }
             });
+
             return ListView.separated(
               itemCount: bookings.length,
               separatorBuilder: (context, index) => const SizedBox(height: 8),
@@ -106,8 +98,12 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                 final formattedDate = dateTime != null
                     ? "${dateTime.day}/${dateTime.month}/${dateTime.year}"
                     : data['date'] ?? "N/A";
+                final price = (data['price'] is Map
+                    ? (data['price'] as Map)['price']
+                    : data['price']) ?? 0;
+
                 // Determine status color
-                Color statusColor = Colors.grey; // Default
+                Color statusColor = Colors.grey;
                 if (data['status'].toString().startsWith("Confirmed")) {
                   statusColor = Colors.blue;
                 } else if (data['status'] == "Rejected") {
@@ -115,278 +111,165 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
                 } else if (data['status'] == "Pending") {
                   statusColor = Colors.orange;
                 } else if (data['status'] == "Service Done") {
-                  statusColor = Colors.grey[800]!; // Dark gray
-                } else if (data['status'] == "Payment Method Confirmed (COD)") {
-                  statusColor = Colors.green; // Blue for COD
+                  statusColor = Colors.grey[800]!;
+                } else if (data['status'] == "Payment Method Confirmed (COD)" ||
+                    data['status'] == "Payment Method Confirmed (Online)") {
+                  statusColor = Colors.green;
                 }
-                return GestureDetector(
-                  onTap: () {
-                    final status = doc['status'];
-                    if (status == "Service Done" ||
-                        status == "Cancelled" ||
-                        status == "Rejected") {
-                      // For Service Done, show ratings dialog instead of status options
-                      if (status == "Service Done") {
-                        _showUserRatingDialog(context, doc.id);
-                        return;
-                      }
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Status '$status' cannot be modified."),
-                          backgroundColor: Colors.grey[700],
-                        ),
-                      );
-                      return;
-                    }
-                    _showStatusOptions(context, doc.id, status, "");
-                  },
-                  child: Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    color: isNew ? Colors.blue[50] : Colors.white,
+                return Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  color: isNew ? Colors.blue[50] : Colors.white,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _showBookingDetails(context, doc),
                     child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Stack(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Car Type row
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    "${data["carType"]}",
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                              Expanded(
+                                child: Text(
+                                  "${data["carType"]} • ${data["serviceType"]}",
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                ],
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                "Service: ${data["washType"]} (${data["serviceType"]})",
-                                style: const TextStyle(fontSize: 16),
-                              ),
-                              const SizedBox(height: 12),
-                              const Divider(height: 1),
-                              const SizedBox(height: 12),
-                              _buildInfoRow(
-                                  Icons.person, "${data["userName"] ?? "N/A"}"),
-                              const SizedBox(height: 8),
-                              _buildInfoRow(
-                                  Icons.phone, "${data["userPhone"] ?? "N/A"}"),
-                              const SizedBox(height: 8),
-                              _buildInfoRow(Icons.location_on,
-                                  "${data["userLocation"] ?? "N/A"}"),
-                              const SizedBox(height: 12),
-                              const Divider(height: 1),
-                              const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  _buildDateTimeInfo(
-                                      Icons.calendar_today, formattedDate),
-                                  _buildDateTimeInfo(
-                                      Icons.access_time, "${data["time"]}"),
-                                ],
-                              ),
-
-                              // Add rating display for Service Done bookings
-                              if (data['status'] == "Service Done")
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 12.0),
-                                  child: StreamBuilder<QuerySnapshot>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('bookingRatings')
-                                        .snapshots(),
-                                    builder: (context, ratingSnapshot) {
-                                      if (ratingSnapshot.connectionState ==
-                                          ConnectionState.waiting) {
-                                        return const Center(
-                                          child: SizedBox(
-                                            height: 20,
-                                            width: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                      if (ratingSnapshot.hasData) {
-                                        final bookingId = doc.id;
-                                        var allRatings =
-                                            ratingSnapshot.data!.docs;
-                                        var bookingRatings =
-                                            allRatings.where((ratingDoc) {
-                                          var ratingData = ratingDoc.data()
-                                              as Map<String, dynamic>;
-                                          return ratingData['bookingId'] ==
-                                                  bookingId ||
-                                              ratingDoc.id == bookingId;
-                                        }).toList();
-
-                                        if (bookingRatings.isNotEmpty) {
-                                          var ratingData = bookingRatings.first
-                                              .data() as Map<String, dynamic>;
-                                          var rating =
-                                              ratingData['rating'] ?? 0;
-                                          var comment = ratingData['comment'] ??
-                                              "No comment";
-
-                                          return Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  const Text(
-                                                    "User Rating: ",
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                  for (int i = 0; i < 5; i++)
-                                                    Icon(
-                                                      i < rating
-                                                          ? Icons.star
-                                                          : Icons.star_border,
-                                                      color: Colors.amber,
-                                                      size: 16,
-                                                    ),
-                                                  Text(
-                                                    " ($rating/5)",
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      color: Colors.grey[600],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      "\"$comment\"",
-                                                      style: TextStyle(
-                                                        fontStyle:
-                                                            FontStyle.italic,
-                                                        fontSize: 13,
-                                                        color: Colors.grey[700],
-                                                      ),
-                                                      maxLines: 2,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        _showUserRatingDialog(
-                                                            context, doc.id),
-                                                    child: const Text(
-                                                      "View Details",
-                                                      style: TextStyle(
-                                                        color:
-                                                            Colors.deepOrange,
-                                                        fontSize: 13,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          );
-                                        }
-                                      }
-                                      return const Text(
-                                        "No rating available",
-                                        style: TextStyle(
-                                          fontStyle: FontStyle.italic,
-                                          fontSize: 13,
-                                          color: Colors.grey,
-                                        ),
-                                      );
-                                    },
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  "${data["status"]}",
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
                                   ),
                                 ),
+                              ),
                             ],
                           ),
-
-                          // Status and menu button in top-right
-                          Positioned(
-                            right: 4,
-                            top: 4,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: statusColor.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    "${data["status"]}",
-                                    style: TextStyle(
-                                      color: statusColor,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                if ((data["status"] ?? "") !=
-                                        "Payment Method Confirmed (COD)" &&
-                                    (data["status"] ?? "") != "Service Done" &&
-                                    (data["status"] ?? "") != "Cancelled" &&
-                                    (data["status"] ?? "") != "Rejected")
-                                  IconButton(
-                                    icon: const Icon(Icons.more_vert),
-                                    iconSize: 20,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    color: Colors.deepOrange,
-                                    onPressed: () {
-                                      final status = doc['status'];
-                                      if (status == "Service Done" ||
-                                          status == "Cancelled") {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                                "Status '$status' cannot be modified."),
-                                            backgroundColor: Colors.grey[700],
-                                          ),
-                                        );
-                                        return;
-                                      }
-                                      _showStatusOptions(
-                                          context, doc.id, status, "");
-                                    },
-                                  )
-                              ],
+                          const SizedBox(height: 8),
+                          Text(
+                            "${data["washType"]}",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[700],
                             ),
                           ),
-                          // Notification dot if (isNew)
-                          if (isNew)
-                            const Positioned(
-                              right: 40,
-                              top: 4,
-                              child: CircleAvatar(
-                                radius: 6,
-                                backgroundColor: Colors.red,
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.person_outline,
+                                size: 16,
+                                color: Colors.grey[600],
                               ),
-                            ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "${data["userName"] ?? "N/A"}",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                              const Spacer(),
+                              Icon(
+                                Icons.calendar_today_outlined,
+                                size: 16,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                formattedDate,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.access_time_outlined,
+                                size: 16,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "${data["time"]}",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.currency_rupee,
+                                size: 16,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "$price",
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (data['status'] == "Service Done" && data['hasFeedback'] == true) ...[
+                                const Spacer(),
+                                StreamBuilder<QuerySnapshot>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('bookingRatings')
+                                      .where('bookingId', isEqualTo: doc.id)
+                                      .snapshots(),
+                                  builder: (context, ratingSnapshot) {
+                                    if (ratingSnapshot.hasData && ratingSnapshot.data!.docs.isNotEmpty) {
+                                      final ratingData = ratingSnapshot.data!.docs.first.data() as Map<String, dynamic>;
+                                      final rating = ratingData['rating'] ?? 0;
+                                      return Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.star_outlined,
+                                            size: 16,
+                                            color: Colors.amber,
+                                          ),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            rating.toString(),
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }
+                                    return const SizedBox();
+                                  },
+                                ),
+                              ],
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -400,6 +283,172 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
     );
   }
 
+  void _showBookingDetails(BuildContext context, DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final price = (data['price'] is Map
+        ? (data['price'] as Map)['price']
+        : data['price']) ?? 0;
+    final timestamp = data['timestamp'] as Timestamp?;
+    final dateTime = timestamp?.toDate();
+    final formattedDate = dateTime != null
+        ? "${dateTime.day}/${dateTime.month}/${dateTime.year}"
+        : data['date'] ?? "N/A";
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Center(
+                child: Text(
+                  "Booking Details",
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildDetailRow("Car Type", data["carType"]),
+              _buildDetailRow("Service Type", data["serviceType"]),
+              _buildDetailRow("Wash Type", data["washType"]),
+              _buildDetailRow("Price", "price"),
+              _buildDetailRow("Date", formattedDate),
+              _buildDetailRow("Time", data["time"]),
+              _buildDetailRow("Customer Name", data["userName"] ?? "N/A"),
+              _buildDetailRow("Phone", data["userPhone"] ?? "N/A"),
+              _buildDetailRow("Location", data["userLocation"] ?? "N/A"),
+              if (data['status'] == "Service Done" && data['hasFeedback'] == true) ...[
+                const SizedBox(height: 16),
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('bookingRatings')
+                      .where('bookingId', isEqualTo: doc.id)
+                      .snapshots(),
+                  builder: (context, ratingSnapshot) {
+                    if (ratingSnapshot.hasData && ratingSnapshot.data!.docs.isNotEmpty) {
+                      final ratingData = ratingSnapshot.data!.docs.first.data() as Map<String, dynamic>;
+                      final rating = ratingData['rating'] ?? 0;
+                      final comment = ratingData['comment'] ?? "No comment provided";
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Customer Feedback:",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              for (int i = 0; i < 5; i++)
+                                Icon(
+                                  i < rating ? Icons.star : Icons.star_border,
+                                  color: Colors.amber,
+                                  size: 24,
+                                ),
+                              const SizedBox(width: 8),
+                              Text(
+                                "$rating/5",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            comment,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return const SizedBox();
+                  },
+                ),
+              ],
+              const SizedBox(height: 24),
+              if (data['status'] != "Service Done" &&
+                  data['status'] != "Cancelled" &&
+                  data['status'] != "Rejected")
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepOrange,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _showStatusOptions(context, doc.id, data['status'], "");
+                    },
+                    child: const Text(
+                      "Update Status",
+                      style: TextStyle(
+                        fontSize: 16,color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildInfoRow(IconData icon, String text) {
     return Row(
       children: [
@@ -594,7 +643,9 @@ class _ViewBookingsPageState extends State<ViewBookingsPage> {
 
     // COD status options (Payment Method Confirmed (COD))
     if (status.trim().toLowerCase() ==
-        "payment method confirmed (cod)".toLowerCase()) {
+            "payment method confirmed (cod)".toLowerCase() ||
+        status.trim().toLowerCase() ==
+            "payment method confirmed (online)".toLowerCase()) {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(

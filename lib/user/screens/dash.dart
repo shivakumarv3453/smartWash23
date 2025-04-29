@@ -281,6 +281,35 @@ class _DashState extends State<Dash> {
     print("Center Name to Location Mapping: $centerNameToLocation");
   }
 
+  Map<String, double?> _centerUidToAvgRating = {};
+  Map<String, int> _centerUidToRatingCount = {};
+
+  Future<void> loadCenterRatings() async {
+    for (var center in centerNameToUid.entries) {
+      String uid = center.value;
+      final ratingsSnapshot = await FirebaseFirestore.instance
+          .collection('bookingRatings')
+          .where('centerUid', isEqualTo: uid)
+          .get();
+
+      final ratings = ratingsSnapshot.docs
+          .map((doc) => doc['rating'] as num?)
+          .where((r) => r != null)
+          .cast<num>()
+          .toList();
+
+      if (ratings.isNotEmpty) {
+        double avg = ratings.reduce((a, b) => a + b) / ratings.length;
+        _centerUidToAvgRating[uid] = avg;
+        _centerUidToRatingCount[uid] = ratings.length;
+      } else {
+        _centerUidToAvgRating[uid] = null;
+        _centerUidToRatingCount[uid] = 0;
+      }
+    }
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -296,6 +325,16 @@ class _DashState extends State<Dash> {
                   WashingCenterDropdown(
                     centerNames: centerNameToUid.keys.toList(),
                     centerNameToLocation: centerNameToLocation,
+                    centerNameToUid:
+                        centerNameToUid, // ✅ This is what was missing
+                    centerNameToRating: {
+                      for (var entry in centerNameToUid.entries)
+                        entry.key: _centerUidToAvgRating[entry.value]
+                    },
+                    centerNameToRatingCount: {
+                      for (var entry in centerNameToUid.entries)
+                        entry.key: _centerUidToRatingCount[entry.value] ?? 0
+                    },
                     onCenterSelected: (String? center) async {
                       print("Selected Center: $center");
 
@@ -378,9 +417,11 @@ class _DashState extends State<Dash> {
                           return StatefulBuilder(
                             builder: (context, setState) {
                               return AlertDialog(
-                                title: const Text(
-                                  "Choose Service Type",
-                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                title: Center(
+                                  child: const Text(
+                                    "Choose Service Type",
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                                 content: Column(
                                   mainAxisSize: MainAxisSize.min,

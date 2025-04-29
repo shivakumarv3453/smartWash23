@@ -9,7 +9,7 @@ import 'package:smart_wash/login/forget_password.dart';
 import 'package:smart_wash/user/screens/dash.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:connectivity_plus/connectivity_plus.dart'; // Add this package
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 String hashPassword(String password) {
   return sha256.convert(utf8.encode(password)).toString();
