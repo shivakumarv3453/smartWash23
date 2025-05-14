@@ -410,9 +410,8 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
         debugPrint("Final Total: ₹${finalPrice.toStringAsFixed(2)}");
 
         return {
-          'price': finalPrice
-              .toStringAsFixed(2), // Convert to String with 2 decimal places
-          'distancePrice': distancePrice.toStringAsFixed(2),
+          'price': finalPrice.toDouble(),
+          'distancePrice': distancePrice.toDouble(),
           'isExact': usingExactLocation,
           'message': usingExactLocation
               ? null
@@ -426,8 +425,8 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
             0;
 
         return {
-          'price': basePrice.toStringAsFixed(2),
-          'distancePrice': '0.00',
+          'price': basePrice.toDouble(),
+          'distancePrice': 0.00,
           'isExact': false,
           'message': "Using base price only",
         };
@@ -495,8 +494,8 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                     Center(
                       child: Text(
                         data['isExact']
-                            ? "₹${data['price']} " // This is already rounded to 2 decimals
-                            : "₹${(double.parse(data['price']) * 0.8 + 80).round()} - ₹${(double.parse(data['price']) * 0.8 + 140).round()}",
+                            ? "₹${data['price'].toStringAsFixed(2)}" // Use `toStringAsFixed(2)` to format to 2 decimals
+                            : "₹${(data['price'] * 0.8 + 80).round()} - ₹${(data['price'] * 0.8 + 140).round()}",
                         style: const TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
@@ -504,11 +503,11 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                         ),
                       ),
                     ),
-                    if (double.parse(data['distancePrice']) > 0) ...[
+                    if (data['distancePrice'] > 0) ...[
                       const SizedBox(height: 10),
                       Center(
                         child: Text(
-                          "Includes ₹${data['distancePrice']} for distance",
+                          "Includes ₹${data['distancePrice'].toStringAsFixed(2)} for distance",
                           style: TextStyle(
                             color: Colors.blue.shade800,
                             fontSize: 12,
@@ -521,7 +520,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                       child: Text(
                         data['isExact']
                             ? "Your total price"
-                            : " Approximate price\n Please enable the location for better price",
+                            : "Approximate price\nPlease enable the location for better price",
                         style: TextStyle(
                           color: data['isExact'] ? Colors.green : Colors.orange,
                           fontSize: 12,
@@ -531,6 +530,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                     ),
                   ],
                 );
+
               }
 
               return SingleChildScrollView(child: content);
@@ -645,7 +645,7 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
                     'userName': userName,
                     'userPhone': userPhone,
                     'userLocation': userLocation,
-                    'price': finalPrice['price'],
+                    'price': finalPrice['price'].toDouble(),
                     'timestamp': FieldValue.serverTimestamp(),
                     'notificationSent': false,
                     'userCoordinates': GeoPoint(
@@ -713,7 +713,6 @@ class _TimeSlotPageState extends State<TimeSlotPage> {
         Text("Wash: ${widget.washType}"),
         Text("Date: ${DateFormat('dd MMM yyyy').format(selectedDate)}"),
         Text("Time: $selectedTimeSlot"),
-        // Text("Distance price: ₹${pric.toStringAsFixed(2)}"),
       ],
     );
   }
@@ -731,110 +730,3 @@ class _DayHeader extends StatelessWidget {
     );
   }
 }
-
-// class _DayButton extends StatelessWidget {
-//   final DateTime? day;
-//   final bool isSelected;
-//   final VoidCallback onTap;
-
-//   const _DayButton({
-//     required this.day,
-//     required this.isSelected,
-//     required this.onTap,
-//   });
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final today = DateTime.now();
-//     final lastValidDate = today.add(const Duration(days: 7));
-//     final isToday = day != null &&
-//         day!.year == today.year &&
-//         day!.month == today.month &&
-//         day!.day == today.day;
-
-//     final isDisabled = day == null ||
-//         day!.isBefore(DateTime(today.year, today.month, today.day)) ||
-//         day!.isAfter(lastValidDate);
-
-//     // Colors
-//     final Color bgColor;
-//     final Color textColor;
-//     final Color borderColor;
-
-//     if (isDisabled) {
-//       bgColor = Colors.grey.shade100;
-//       textColor = Colors.grey.shade400;
-//       borderColor = Colors.grey.shade300;
-//     } else if (isSelected) {
-//       bgColor = Theme.of(context).primaryColor;
-//       textColor = Colors.white;
-//       borderColor = Theme.of(context).primaryColor;
-//     } else if (isToday) {
-//       bgColor = Colors.blue.shade50;
-//       textColor = Theme.of(context).primaryColor;
-//       borderColor = Colors.blue.shade100;
-//     } else {
-//       bgColor = Colors.white;
-//       textColor = Colors.black87;
-//       borderColor = Colors.grey.shade200;
-//     }
-
-//     return GestureDetector(
-//       onTap: isDisabled ? null : onTap,
-//       child: Container(
-//         width: 40, // Fixed width
-//         height: 56, // Fixed height
-//         margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-//         decoration: BoxDecoration(
-//           color: bgColor,
-//           borderRadius: BorderRadius.circular(8),
-//           border: Border.all(
-//             color: borderColor,
-//             width: 1,
-//           ),
-//           boxShadow: [
-//             if (!isDisabled && (isSelected || isToday))
-//               BoxShadow(
-//                 color: Colors.black12,
-//                 blurRadius: 2,
-//                 offset: Offset(0, 1),
-//               ),
-//           ],
-//         ),
-//         child: Column(
-//           mainAxisAlignment: MainAxisAlignment.center,
-//           mainAxisSize: MainAxisSize.min,
-//           children: [
-//             Text(
-//               day != null ? DateFormat('E').format(day!).substring(0, 1) : '',
-//               style: TextStyle(
-//                 color: textColor,
-//                 fontSize: 10,
-//                 fontWeight: FontWeight.w500,
-//               ),
-//             ),
-//             const SizedBox(height: 2),
-//             Text(
-//               day != null ? '${day!.day}' : '',
-//               style: TextStyle(
-//                 color: textColor,
-//                 fontSize: 14,
-//                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-//               ),
-//             ),
-//             if (isToday && !isSelected && !isDisabled)
-//               Container(
-//                 margin: const EdgeInsets.only(top: 2),
-//                 height: 3,
-//                 width: 3,
-//                 decoration: BoxDecoration(
-//                   color: Theme.of(context).primaryColor,
-//                   shape: BoxShape.circle,
-//                 ),
-//               ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }

@@ -286,9 +286,13 @@ class BookingDetailsScreen extends StatelessWidget {
           final bookingData = snapshot.data!.data() as Map<String, dynamic>;
           final rawStatus = bookingData['status'] ?? 'Pending';
           final centerUid = bookingData['centerUid'];
-          final price = (bookingData['price'] is Map
-              ? (bookingData['price'] as Map)['price']
-              : bookingData['price']) ?? 0;
+          final double price = (bookingData['price'] is Map)
+              ? ((bookingData['price'] as Map)['price'] is String
+              ? double.parse((bookingData['price'] as Map)['price'])
+              : (bookingData['price'] as Map)['price']?.toDouble() ?? 0.0)
+              : (bookingData['price'] is String
+              ? double.parse(bookingData['price'])
+              : (bookingData['price']?.toDouble() ?? 0.0));
           final paymentMethod = bookingData['paymentMethod'] ?? 'Not specified';
 
           // Customize status label for user
@@ -378,7 +382,7 @@ class BookingDetailsScreen extends StatelessWidget {
                       const Divider(height: 16),
                       _buildDetailRow(
                         "Total Amount",
-                        "₹${price.toStringAsFixed(2)}",
+                        "₹${price.toString()}",
                         valueStyle: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.green[700],
@@ -766,7 +770,6 @@ class BookingDetailsScreen extends StatelessWidget {
         return method;
     }
   }
-
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {

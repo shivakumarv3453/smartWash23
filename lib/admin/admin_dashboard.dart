@@ -329,15 +329,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             ManageTimeSlotsPopup(adminUid: widget.adminUid),
                       ),
                     ),
-                    DashboardItem(
-                      title: "Manage Days",
-                      icon: Icons.calendar_month,
-                      onTap: () => showDialog(
-                        context: context,
-                        builder: (context) =>
-                            ManageDaysPopup(adminUid: widget.adminUid),
-                      ),
-                    ),
+                    // DashboardItem(
+                    //   title: "Manage Days",
+                    //   icon: Icons.calendar_month,
+                    //   onTap: () => showDialog(
+                    //     context: context,
+                    //     builder: (context) =>
+                    //         ManageDaysPopup(adminUid: widget.adminUid),
+                    //   ),
+                    // ),
                     DashboardItem(
                       title: "View Bookings",
                       icon: Icons.list,

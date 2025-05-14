@@ -281,8 +281,8 @@ class _DashState extends State<Dash> {
     print("Center Name to Location Mapping: $centerNameToLocation");
   }
 
-  Map<String, double?> _centerUidToAvgRating = {};
-  Map<String, int> _centerUidToRatingCount = {};
+  final Map<String, double?> _centerUidToAvgRating = {};
+  final Map<String, int> _centerUidToRatingCount = {};
 
   Future<void> loadCenterRatings() async {
     for (var center in centerNameToUid.entries) {
@@ -420,7 +420,8 @@ class _DashState extends State<Dash> {
                                 title: Center(
                                   child: const Text(
                                     "Choose Service Type",
-                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                 ),
                                 content: Column(
