@@ -6,6 +6,8 @@ import 'package:smart_wash/user/app_bar.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
+import '../user/screens/dash.dart';
+
 String hashPassword(String password) {
   return sha256.convert(utf8.encode(password)).toString();
 }
@@ -24,6 +26,8 @@ class _PartnerPageState extends State<PartnerPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _centerNameController = TextEditingController();
+  bool _isLoading = false;
+
 
   final User? user = FirebaseAuth.instance.currentUser;
   String? _selectedLocation;
@@ -54,6 +58,9 @@ class _PartnerPageState extends State<PartnerPage> {
   }
 
   void _handleSubmit() async {
+    setState(() {
+      _isLoading = true;
+    });
     if (_selectedLocation == null ||
         _adminPasswordController.text.isEmpty ||
         _nameController.text.isEmpty ||
@@ -63,39 +70,34 @@ class _PartnerPageState extends State<PartnerPage> {
         _phoneController.text.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-              "All fields are required, and the phone number must be 10 digits."),
+          content: Text("All fields are required, and the phone number must be 10 digits."),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
-    // Save current user credentials
-    User? originalUser = FirebaseAuth.instance.currentUser;
-    String? originalEmail = originalUser?.email;
+    // Check for duplicate center+location
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('partners')
+        .where('center', isEqualTo: _centerNameController.text.trim())
+        .where('location', isEqualTo: _selectedLocation)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("A partner already exists with this center name and location."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     try {
-      // Create admin account (this logs in as admin)
-      UserCredential userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _adminPasswordController.text.trim(),
-      );
-      await _savePartnerData(userCredential.user!.uid);
-
-      // Log out the newly created admin user
-      await FirebaseAuth.instance.signOut();
-
-      // Log the original user back in (assuming original was signed in with email)
-      if (originalEmail != null) {
-        // Prompt user to re-login if password is unknown OR store it securely earlier
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: originalEmail,
-          password:
-              "ORIGINAL_USER_PASSWORD_HERE", // You need to store this securely earlier
-        );
-      }
+      // Save partner data under a new unique document ID
+      String newUid = FirebaseFirestore.instance.collection('partners').doc().id;
+      await _savePartnerData(newUid);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -136,12 +138,18 @@ class _PartnerPageState extends State<PartnerPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          "Thank you, ${_nameController.text}! Your application has been submitted.",
-        ),
+        content: Text("Thank you, ${_nameController.text}! Your application has been submitted."),
         backgroundColor: Colors.green,
       ),
     );
+
+    await Future.delayed(Duration(seconds: 1));
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => Dash()),
+    );
+
   }
 
   @override
@@ -153,7 +161,9 @@ class _PartnerPageState extends State<PartnerPage> {
       },
       child: Scaffold(
         appBar: custAppBar(context, "Become a Partner"),
-        body: SingleChildScrollView(
+        body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(

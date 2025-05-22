@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:smart_wash/admin/app_bar2.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../app_bar.dart';
 
 class PaymentPage extends StatefulWidget {
   final String bookingId;
@@ -427,8 +430,8 @@ class _PaymentPageState extends State<PaymentPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Payment Options'),
+      appBar: custAppBar(
+         context,'Payment Options',
       ),
       body: _isLoading
           ? const Center(
@@ -531,6 +534,58 @@ class _PaymentPageState extends State<PaymentPage> {
                             ),
                             Text(
                               'Google Pay, PhonePe, Paytm, etc.',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Razorpay Option (Kept for testing)
+            Card(
+              child: InkWell(
+                onTap: _openRazorpayCheckout,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.credit_card,
+                          color: Colors.blue.shade700,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Pay with Card/Netbanking',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              'Credit/Debit Card, Netbanking',
                               style: TextStyle(
                                 color: Colors.grey,
                                 fontSize: 12,
