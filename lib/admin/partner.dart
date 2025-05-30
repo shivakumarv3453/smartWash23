@@ -169,7 +169,6 @@ class _PartnerPageState extends State<PartnerPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Vibrant welcome card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),

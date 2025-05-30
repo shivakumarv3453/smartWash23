@@ -313,7 +313,7 @@ class _DashState extends State<Dash> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: custAppBar(context, "       Smart Wash"),
+      appBar: custAppBar(context, "       Smart Wash", showMenu: true),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(

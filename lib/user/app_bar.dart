@@ -3,12 +3,26 @@ import 'package:smart_wash/user/bookings/booking_list.dart';
 import 'package:smart_wash/user/screens/calendar.dart';
 import 'package:smart_wash/login/login.dart';
 import 'package:smart_wash/admin/partner.dart';
+import 'package:smart_wash/user/screens/dash.dart';
 import 'package:smart_wash/user/screens/profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-custAppBar(BuildContext context, String title, {bool showBack = false}) {
+custAppBar(BuildContext context, String title, {bool showBack = false, bool showMenu = false}) {
   return AppBar(
     backgroundColor: Colors.deepOrange,
+    leading: showBack
+        ? IconButton(
+      icon: const Icon(Icons.arrow_back, color: Colors.white),
+      onPressed: () {
+        // Navigate to dash.dart - replace with your actual dash screen import and class name
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const Dash()), // Replace DashScreen with your actual dash screen class
+              (Route<dynamic> route) => false,
+        );
+      },
+    )
+        : null,
     title: Center(
       child: Text(
         title,
@@ -18,7 +32,7 @@ custAppBar(BuildContext context, String title, {bool showBack = false}) {
         ),
       ),
     ),
-    actions: [
+    actions: showMenu ? [
       PopupMenuButton<String>(
         icon: const Icon(Icons.menu, color: Colors.white),
         color: Colors.white, // Menu background color
@@ -50,8 +64,7 @@ custAppBar(BuildContext context, String title, {bool showBack = false}) {
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const Login()),
-              (Route<dynamic> route) =>
-                  false, // This removes all previous routes
+                  (Route<dynamic> route) => false, // This removes all previous routes
             );
           }
         },
@@ -85,13 +98,14 @@ custAppBar(BuildContext context, String title, {bool showBack = false}) {
             ),
           ),
           const PopupMenuItem(
-              value: "Logout",
-              child: ListTile(
-                leading: Icon(Icons.logout),
-                title: Text("Logout"),
-              ))
+            value: "Logout",
+            child: ListTile(
+              leading: Icon(Icons.logout),
+              title: Text("Logout"),
+            ),
+          )
         ],
       ),
-    ],
+    ] : null,
   );
 }
