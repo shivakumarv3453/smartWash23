@@ -21,3 +21,9 @@ samples, guidance on mobile development, and a full API reference.
 - users not able to cancel their respective bookings (error on rules)
 
 - date(10 april)
+
+
+## Setup
+- Flutter version : 3.27.1
+- Java version : 19.0.2
+
