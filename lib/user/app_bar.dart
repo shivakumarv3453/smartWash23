@@ -6,23 +6,41 @@ import 'package:smart_wash/admin/partner.dart';
 import 'package:smart_wash/user/screens/dash.dart';
 import 'package:smart_wash/user/screens/profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:smart_wash/user/screens/rating.dart';
 
 custAppBar(BuildContext context, String title, {bool showBack = false, bool showMenu = false}) {
   return AppBar(
     backgroundColor: Colors.deepOrange,
     leading: showBack
         ? IconButton(
-      icon: const Icon(Icons.arrow_back, color: Colors.white),
-      onPressed: () {
-        // Navigate to dash.dart - replace with your actual dash screen import and class name
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const Dash()), // Replace DashScreen with your actual dash screen class
-              (Route<dynamic> route) => false,
-        );
-      },
-    )
-        : null,
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const Dash()),
+                (Route<dynamic> route) => false,
+              );
+            },
+          )
+        : Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withOpacity(0.2),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.person_outline, 
+                color: Colors.white,
+                size: 24,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfilePage()),
+                );
+              },
+            ),
+          ),
     title: Center(
       child: Text(
         title,
@@ -35,11 +53,11 @@ custAppBar(BuildContext context, String title, {bool showBack = false, bool show
     actions: showMenu ? [
       PopupMenuButton<String>(
         icon: const Icon(Icons.menu, color: Colors.white),
-        color: Colors.white, // Menu background color
+        color: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
         ),
-        splashRadius: 1, // Reduce ripple effect
+        splashRadius: 1,
         tooltip: 'Menu',
         onSelected: (value) async {
           if (value == "Calendar") {
@@ -51,21 +69,11 @@ custAppBar(BuildContext context, String title, {bool showBack = false, bool show
               MaterialPageRoute(
                   builder: (context) => const BookingListScreen()),
             );
-          } else if (value == "Profile") {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => const ProfilePage()));
           } else if (value == "Become a Partner") {
             Navigator.push(context,
                 MaterialPageRoute(builder: (context) => const PartnerPage()));
-          } else if (value == "Logout") {
-            // Sign out from Firebase
-            await FirebaseAuth.instance.signOut();
-            // Redirect to Login page after sign-out
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const Login()),
-                  (Route<dynamic> route) => false, // This removes all previous routes
-            );
+          } else if (value == "Feedback") {
+            showRatingDialog(context);
           }
         },
         itemBuilder: (BuildContext context) => [
@@ -84,13 +92,6 @@ custAppBar(BuildContext context, String title, {bool showBack = false, bool show
             ),
           ),
           const PopupMenuItem(
-            value: "Profile",
-            child: ListTile(
-              leading: Icon(Icons.person),
-              title: Text("Profile"),
-            ),
-          ),
-          const PopupMenuItem(
             value: "Become a Partner",
             child: ListTile(
               leading: Icon(Icons.business),
@@ -98,12 +99,12 @@ custAppBar(BuildContext context, String title, {bool showBack = false, bool show
             ),
           ),
           const PopupMenuItem(
-            value: "Logout",
+            value: "Feedback",
             child: ListTile(
-              leading: Icon(Icons.logout),
-              title: Text("Logout"),
+              leading: Icon(Icons.rate_review),
+              title: Text("Feedback"),
             ),
-          )
+          ),
         ],
       ),
     ] : null,

@@ -3,11 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_wash/user/app_bar.dart';
 import 'package:smart_wash/user/screens/greet.dart';
-// import 'package:smart_wash/main.dart';
 import 'package:smart_wash/user/screens/rating.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:smart_wash/services/firebase_service.dart';
 import 'package:smart_wash/user/screens/washing_center.dart';
+import 'package:smart_wash/services/overpass_services.dart';
 
 class Dash extends StatefulWidget {
   const Dash({super.key});
@@ -32,6 +32,11 @@ class _DashState extends State<Dash> {
 
   int _currentImageIndex = 0;
   late Timer _timer;
+  Position? _currentPosition;
+  final OverpassService _overpassService = OverpassService();
+  final FirebaseServices _firebaseServices = FirebaseServices();
+  Map<String, dynamic>? adminSettings;
+  String selectedServiceCenter = "center1";
 
   final List<Map<String, dynamic>> _ratings = []; // List to hold ratings
 
@@ -43,14 +48,42 @@ class _DashState extends State<Dash> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 3), _changeImage);
-    fetchAdminSettings();
-    _getLocationPermissionAndFetch();
-    fetchCenters();
+    _initializeAppData();
   }
 
-  final FirebaseServices _firebaseServices = FirebaseServices();
-  Map<String, dynamic>? adminSettings;
-  String selectedServiceCenter = "center1";
+  Future<void> _initializeAppData() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // Fetch admin settings and location in parallel
+      await Future.wait([
+        fetchAdminSettings(),
+        _getLocationPermissionAndFetch(),
+      ]);
+      
+      // Once we have location, fetch centers
+      await fetchCenters();
+      
+      // Load ratings for centers
+      await loadCenterRatings();
+    } catch (e) {
+      print("Error initializing app data: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _initializeLocationAndFetchCenters() async {
+    print("🚀 Initializing location and fetching centers...");
+    await _getLocationPermissionAndFetch(); // Wait for location
+    fetchCenters(); // Now fetch centers with location available
+  }
 
   Future<void> fetchAdminSettings() async {
     var settings =
@@ -71,12 +104,13 @@ class _DashState extends State<Dash> {
       _currentImageIndex = (_currentImageIndex + 1) % _imagePaths.length;
     });
   }
-// Location
 
+  // Remove the incorrect position declaration and update the location fetch method
   Future<void> _getLocationPermissionAndFetch() async {
     bool serviceEnabled;
     LocationPermission permission;
 
+    print("📍 Checking location services...");
     // Check if location services are enabled
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -101,11 +135,17 @@ class _DashState extends State<Dash> {
     }
 
     try {
+      print("📍 Getting current position...");
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
+      print("📍 Position obtained: ${position.latitude}, ${position.longitude}");
+      setState(() {
+        _currentPosition = position;
+      });
       _showLocationSnackBar(position);
     } catch (e) {
+      print("❌ Error getting location: $e");
       _showLocationError("Error fetching location: $e");
     }
   }
@@ -249,13 +289,23 @@ class _DashState extends State<Dash> {
   Map<String, String> centerNameToUid = {};
   Map<String, String> centerNameToLocation = {};
 
-  void fetchCenters() async {
-    QuerySnapshot<Map<String, dynamic>> snapshot =
-        await FirebaseFirestore.instance.collection('partners').get();
-
+  // Update fetchCenters to include both Firebase and Overpass data
+  Future<void> fetchCenters() async {
     setState(() {
-      centerNameToUid.clear();
-      centerNameToLocation.clear();
+      isLoading = true;
+    });
+
+    try {
+      print("🔍 Starting to fetch centers...");
+      
+      // Fetch centers from Firebase
+      QuerySnapshot<Map<String, dynamic>> snapshot =
+          await FirebaseFirestore.instance.collection('partners').get();
+
+      Map<String, String> tempCenterNameToUid = {};
+      Map<String, String> tempCenterNameToLocation = {};
+
+      print("📱 Firebase centers found: ${snapshot.docs.length}");
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
@@ -268,17 +318,66 @@ class _DashState extends State<Dash> {
             location != null &&
             location is String &&
             location.trim().isNotEmpty) {
-          centerNameToUid[centerName] = doc.id;
-          centerNameToLocation[centerName] = location;
-        } else {
-          print(
-              "Skipped partner ${doc.id} due to missing/invalid center or location");
+          tempCenterNameToUid[centerName] = doc.id;
+          tempCenterNameToLocation[centerName] = location;
+          print("✅ Added Firebase center: $centerName at $location");
         }
       }
-    });
 
-    print("Center Name to UID Mapping: $centerNameToUid");
-    print("Center Name to Location Mapping: $centerNameToLocation");
+      // Fetch nearby car washes from Overpass if we have location
+      if (_currentPosition != null) {
+        print("📍 Current position: ${_currentPosition!.latitude}, ${_currentPosition!.longitude}");
+        
+        final overpassResults = await _overpassService.fetchNearbyCarWashCenters(
+          latitude: _currentPosition!.latitude,
+          longitude: _currentPosition!.longitude,
+          radiusInMeters: 5000, // 5km radius
+        );
+
+        print("🌍 Overpass centers found: ${overpassResults.length}");
+
+        // Add Overpass results to our maps
+        for (var center in overpassResults) {
+          final name = center['name'] as String? ?? 'Unnamed Car Wash';
+          final location = '${center['lat']}, ${center['lon']}';
+          final address = center['address'] as String? ?? '';
+          final phone = center['phone'] as String? ?? '';
+          
+          // Create a more informative location string
+          final locationInfo = [
+            if (address.isNotEmpty) address,
+            if (phone.isNotEmpty) 'Phone: $phone',
+            location
+          ].join(' • ');
+          
+          // Only add if not already in Firebase (to avoid duplicates)
+          if (!tempCenterNameToUid.containsKey(name)) {
+            tempCenterNameToUid[name] = 'overpass_${center['id']}';
+            tempCenterNameToLocation[name] = locationInfo;
+            print("🌟 Added Overpass center: $name at $locationInfo");
+          } else {
+            print("⚠️ Skipped duplicate center: $name");
+          }
+        }
+      } else {
+        print("❌ No current position available for Overpass search");
+      }
+
+      setState(() {
+        centerNameToUid = tempCenterNameToUid;
+        centerNameToLocation = tempCenterNameToLocation;
+        isLoading = false;
+      });
+
+      print("🎉 Final center count: ${centerNameToUid.length}");
+      print("📍 Center Name to UID Mapping: $centerNameToUid");
+      print("📍 Center Name to Location Mapping: $centerNameToLocation");
+    } catch (e) {
+      print("❌ Error fetching centers: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   final Map<String, double?> _centerUidToAvgRating = {};
@@ -313,8 +412,26 @@ class _DashState extends State<Dash> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: custAppBar(context, "       Smart Wash", showMenu: true),
-      body: Padding(
+      appBar: custAppBar(context, "Smart Wash", showMenu: true),
+      body: isLoading ? Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.deepOrange),
+              strokeWidth: 2.0,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "Loading nearby centers...",
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ) : Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
           child: Column(children: [
@@ -325,8 +442,7 @@ class _DashState extends State<Dash> {
                   WashingCenterDropdown(
                     centerNames: centerNameToUid.keys.toList(),
                     centerNameToLocation: centerNameToLocation,
-                    centerNameToUid:
-                        centerNameToUid, // ✅ This is what was missing
+                    centerNameToUid: centerNameToUid,
                     centerNameToRating: {
                       for (var entry in centerNameToUid.entries)
                         entry.key: _centerUidToAvgRating[entry.value]
@@ -353,17 +469,23 @@ class _DashState extends State<Dash> {
 
                           print("Center UID: $_selectedCenterUid");
 
-                          if (_selectedCenterUid!.isNotEmpty) {
+                          // Only fetch service types for Firebase centers
+                          if (!_selectedCenterUid!.startsWith('overpass_') && _selectedCenterUid!.isNotEmpty) {
                             fetchServiceTypes(_selectedCenterUid!);
                           } else {
-                            print(
-                                "❌ UID is empty or null, skipping fetchServiceTypesForCenter");
+                            // For Overpass centers, enable both service types by default
+                            setState(() {
+                              onSiteEnabled = true;
+                              atCenterEnabled = true;
+                            });
                           }
                         } else {
                           print("❌ No UID found for center: $center");
                         }
                       }
                     },
+                    isLoading: isLoading,
+                    currentPosition: _currentPosition,
                   ),
 
                   const SizedBox(height: 20),
@@ -397,6 +519,18 @@ class _DashState extends State<Dash> {
                         return;
                       }
 
+                      // Check if selected center is unregistered - Move this check here
+                      if (_selectedCenterUid != null && _selectedCenterUid!.startsWith('overpass_')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Please select a registered center for booking your wash. Unregistered centers cannot accept bookings through our app."),
+                            duration: Duration(seconds: 4),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                        return;
+                      }
+
                       // Ensure we have the center UID
                       if (_selectedCenterUid == null) {
                         _selectedCenterUid =
@@ -409,7 +543,7 @@ class _DashState extends State<Dash> {
                           );
                           return;
                         }
-                      } // ========== NEW CODE BLOCK END ========== //
+                      }
 
                       showDialog(
                         context: context,
@@ -821,13 +955,7 @@ class _DashState extends State<Dash> {
           ]),
         ),
       ),
-      // Add Floating Action Button to Submit Feedback
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showRatingDialog(context);
-        },
-        child: const Icon(Icons.rate_review),
-      ),
+      // Remove the floating action button
     );
   }
 }
