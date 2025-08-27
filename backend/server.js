@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const Razorpay = require('razorpay');
 const cors = require('cors');
@@ -6,10 +7,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Replace these with your Razorpay test keys
+// Initialize Razorpay with environment variables
 const razorpay = new Razorpay({
-  key_id: 'rzp_test_6JdX7oPFCEpYn7',
-  key_secret: 'utsfm9OH2Ec4h7d8re0KT0VG',
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
 app.post('/create-order', async (req, res) => {

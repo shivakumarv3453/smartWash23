@@ -4,6 +4,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:smart_wash/admin/app_bar2.dart';
+import 'package:smart_wash/config/app_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app_bar.dart';
@@ -63,7 +64,7 @@ class _PaymentPageState extends State<PaymentPage> {
     print('Opening Razorpay checkout with Order ID: ${order['id']}');
 
     var options = {
-      'key': 'rzp_test_6JdX7oPFCEpYn7',
+      'key': AppConfig.razorpayKeyId,
       'amount': widget.amount * 100, // Convert to paise
       'name': 'Smart Wash',
       'description': 'Booking for Wash',

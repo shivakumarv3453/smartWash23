@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:smart_wash/config/app_config.dart';
 import 'package:smart_wash/login/login.dart';
 import 'package:smart_wash/user/screens/dash.dart';
 import 'package:smart_wash/user/screens/payment.dart';
@@ -13,15 +14,15 @@ void main() async {
 
   try {
     if (kIsWeb) {
-      // Initialize Firebase for web with the correct options
+      // Initialize Firebase for web with secure configuration
       await Firebase.initializeApp(
-        options: const FirebaseOptions(
-          apiKey: "AIzaSyDBXwnO8b0OYrc7d8ndv0J28bDNC6aZlNw",
-          authDomain: "fir-auth-f1931.firebaseapp.com",
-          projectId: "fir-auth-f1931",
-          storageBucket: "fir-auth-f1931.appspot.com",
-          messagingSenderId: "760988528329",
-          appId: "1:760988528329:web:5f2e69aa3d4eec67512718",
+        options: FirebaseOptions(
+          apiKey: AppConfig.firebaseApiKey,
+          authDomain: AppConfig.firebaseAuthDomain,
+          projectId: AppConfig.firebaseProjectId,
+          storageBucket: AppConfig.firebaseStorageBucket,
+          messagingSenderId: AppConfig.firebaseMessagingSenderId,
+          appId: AppConfig.firebaseAppId,
         ),
       );
       // Set persistence for Firebase Auth on Web
